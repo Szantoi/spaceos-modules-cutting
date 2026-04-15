@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{231D2F5A-4038-4D78-A0B7-54E131D8246B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceOS.Modules.Inventory.Contracts", "src\SpaceOS.Modules.Inventory.Contracts\SpaceOS.Modules.Inventory.Contracts.csproj", "{AE499A77-BAE7-4DFA-A296-0735A8494606}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceOS.Modules.Cutting.Contracts", "src\SpaceOS.Modules.Cutting.Contracts\SpaceOS.Modules.Cutting.Contracts.csproj", "{1F06C257-A075-4533-987E-F888767E7FB3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceOS.Modules.Procurement.Contracts", "src\SpaceOS.Modules.Procurement.Contracts\SpaceOS.Modules.Procurement.Contracts.csproj", "{A95CEE20-346A-437E-98BD-CCAD550DE1EF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{224C6688-9ED0-45F2-BF64-2DC77B7E5E29}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceOS.Modules.Cutting.Contracts.Tests", "tests\SpaceOS.Modules.Cutting.Contracts.Tests\SpaceOS.Modules.Cutting.Contracts.Tests.csproj", "{0449562D-666F-4B72-9647-58150A0134A1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AE499A77-BAE7-4DFA-A296-0735A8494606}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AE499A77-BAE7-4DFA-A296-0735A8494606}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AE499A77-BAE7-4DFA-A296-0735A8494606}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AE499A77-BAE7-4DFA-A296-0735A8494606}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1F06C257-A075-4533-987E-F888767E7FB3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1F06C257-A075-4533-987E-F888767E7FB3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1F06C257-A075-4533-987E-F888767E7FB3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1F06C257-A075-4533-987E-F888767E7FB3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A95CEE20-346A-437E-98BD-CCAD550DE1EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A95CEE20-346A-437E-98BD-CCAD550DE1EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A95CEE20-346A-437E-98BD-CCAD550DE1EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A95CEE20-346A-437E-98BD-CCAD550DE1EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0449562D-666F-4B72-9647-58150A0134A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0449562D-666F-4B72-9647-58150A0134A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0449562D-666F-4B72-9647-58150A0134A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0449562D-666F-4B72-9647-58150A0134A1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{AE499A77-BAE7-4DFA-A296-0735A8494606} = {231D2F5A-4038-4D78-A0B7-54E131D8246B}
+		{1F06C257-A075-4533-987E-F888767E7FB3} = {231D2F5A-4038-4D78-A0B7-54E131D8246B}
+		{A95CEE20-346A-437E-98BD-CCAD550DE1EF} = {231D2F5A-4038-4D78-A0B7-54E131D8246B}
+		{0449562D-666F-4B72-9647-58150A0134A1} = {224C6688-9ED0-45F2-BF64-2DC77B7E5E29}
+	EndGlobalSection
+EndGlobal
