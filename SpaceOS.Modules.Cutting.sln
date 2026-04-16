@@ -5,15 +5,21 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{231D2F5A-4038-4D78-A0B7-54E131D8246B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceOS.Modules.Inventory.Contracts", "src\SpaceOS.Modules.Inventory.Contracts\SpaceOS.Modules.Inventory.Contracts.csproj", "{AE499A77-BAE7-4DFA-A296-0735A8494606}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceOS.Modules.Cutting.Contracts", "src\SpaceOS.Modules.Cutting.Contracts\SpaceOS.Modules.Cutting.Contracts.csproj", "{1F06C257-A075-4533-987E-F888767E7FB3}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceOS.Modules.Procurement.Contracts", "src\SpaceOS.Modules.Procurement.Contracts\SpaceOS.Modules.Procurement.Contracts.csproj", "{A95CEE20-346A-437E-98BD-CCAD550DE1EF}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{224C6688-9ED0-45F2-BF64-2DC77B7E5E29}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceOS.Modules.Cutting.Contracts.Tests", "tests\SpaceOS.Modules.Cutting.Contracts.Tests\SpaceOS.Modules.Cutting.Contracts.Tests.csproj", "{0449562D-666F-4B72-9647-58150A0134A1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceOS.Modules.Cutting.Domain", "src\SpaceOS.Modules.Cutting.Domain\SpaceOS.Modules.Cutting.Domain.csproj", "{E8591E2D-E22B-47DC-A699-578BA609E22D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceOS.Modules.Cutting.Application", "src\SpaceOS.Modules.Cutting.Application\SpaceOS.Modules.Cutting.Application.csproj", "{C104BC5B-5D9F-45F7-977F-DA0A4734EDDE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceOS.Modules.Cutting.Infrastructure", "src\SpaceOS.Modules.Cutting.Infrastructure\SpaceOS.Modules.Cutting.Infrastructure.csproj", "{B3791EEE-5FFA-4049-B52C-2DE306673782}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceOS.Modules.Cutting.Api", "src\SpaceOS.Modules.Cutting.Api\SpaceOS.Modules.Cutting.Api.csproj", "{6AE48E4A-C5E0-43DB-9AC2-8EF1363E4740}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpaceOS.Modules.Cutting.Tests", "tests\SpaceOS.Modules.Cutting.Tests\SpaceOS.Modules.Cutting.Tests.csproj", "{5B93E7D9-ED1B-48F8-B3A8-CFC698EF6B3E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,27 +30,42 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{AE499A77-BAE7-4DFA-A296-0735A8494606}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{AE499A77-BAE7-4DFA-A296-0735A8494606}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{AE499A77-BAE7-4DFA-A296-0735A8494606}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{AE499A77-BAE7-4DFA-A296-0735A8494606}.Release|Any CPU.Build.0 = Release|Any CPU
 		{1F06C257-A075-4533-987E-F888767E7FB3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{1F06C257-A075-4533-987E-F888767E7FB3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1F06C257-A075-4533-987E-F888767E7FB3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1F06C257-A075-4533-987E-F888767E7FB3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A95CEE20-346A-437E-98BD-CCAD550DE1EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A95CEE20-346A-437E-98BD-CCAD550DE1EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A95CEE20-346A-437E-98BD-CCAD550DE1EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A95CEE20-346A-437E-98BD-CCAD550DE1EF}.Release|Any CPU.Build.0 = Release|Any CPU
 		{0449562D-666F-4B72-9647-58150A0134A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0449562D-666F-4B72-9647-58150A0134A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0449562D-666F-4B72-9647-58150A0134A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0449562D-666F-4B72-9647-58150A0134A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E8591E2D-E22B-47DC-A699-578BA609E22D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E8591E2D-E22B-47DC-A699-578BA609E22D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E8591E2D-E22B-47DC-A699-578BA609E22D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E8591E2D-E22B-47DC-A699-578BA609E22D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C104BC5B-5D9F-45F7-977F-DA0A4734EDDE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C104BC5B-5D9F-45F7-977F-DA0A4734EDDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C104BC5B-5D9F-45F7-977F-DA0A4734EDDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C104BC5B-5D9F-45F7-977F-DA0A4734EDDE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B3791EEE-5FFA-4049-B52C-2DE306673782}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B3791EEE-5FFA-4049-B52C-2DE306673782}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B3791EEE-5FFA-4049-B52C-2DE306673782}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B3791EEE-5FFA-4049-B52C-2DE306673782}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6AE48E4A-C5E0-43DB-9AC2-8EF1363E4740}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6AE48E4A-C5E0-43DB-9AC2-8EF1363E4740}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6AE48E4A-C5E0-43DB-9AC2-8EF1363E4740}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6AE48E4A-C5E0-43DB-9AC2-8EF1363E4740}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B93E7D9-ED1B-48F8-B3A8-CFC698EF6B3E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B93E7D9-ED1B-48F8-B3A8-CFC698EF6B3E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B93E7D9-ED1B-48F8-B3A8-CFC698EF6B3E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B93E7D9-ED1B-48F8-B3A8-CFC698EF6B3E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{AE499A77-BAE7-4DFA-A296-0735A8494606} = {231D2F5A-4038-4D78-A0B7-54E131D8246B}
 		{1F06C257-A075-4533-987E-F888767E7FB3} = {231D2F5A-4038-4D78-A0B7-54E131D8246B}
-		{A95CEE20-346A-437E-98BD-CCAD550DE1EF} = {231D2F5A-4038-4D78-A0B7-54E131D8246B}
 		{0449562D-666F-4B72-9647-58150A0134A1} = {224C6688-9ED0-45F2-BF64-2DC77B7E5E29}
+		{E8591E2D-E22B-47DC-A699-578BA609E22D} = {231D2F5A-4038-4D78-A0B7-54E131D8246B}
+		{C104BC5B-5D9F-45F7-977F-DA0A4734EDDE} = {231D2F5A-4038-4D78-A0B7-54E131D8246B}
+		{B3791EEE-5FFA-4049-B52C-2DE306673782} = {231D2F5A-4038-4D78-A0B7-54E131D8246B}
+		{6AE48E4A-C5E0-43DB-9AC2-8EF1363E4740} = {231D2F5A-4038-4D78-A0B7-54E131D8246B}
+		{5B93E7D9-ED1B-48F8-B3A8-CFC698EF6B3E} = {224C6688-9ED0-45F2-BF64-2DC77B7E5E29}
 	EndGlobalSection
 EndGlobal

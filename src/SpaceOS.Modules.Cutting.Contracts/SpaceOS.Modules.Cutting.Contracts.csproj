@@ -9,6 +9,6 @@
     <Authors>SpaceOS</Authors>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/SpaceOS.Modules.Inventory.Contracts/SpaceOS.Modules.Inventory.Contracts.csproj" />
+    <PackageReference Include="SpaceOS.Modules.Inventory.Contracts" Version="1.1.0" />
   </ItemGroup>
 </Project>

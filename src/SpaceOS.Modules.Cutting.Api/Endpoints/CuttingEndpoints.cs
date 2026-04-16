@@ -1,0 +1,101 @@
+using MediatR;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using SpaceOS.Modules.Cutting.Application.Commands.SubmitCuttingSheet;
+using SpaceOS.Modules.Cutting.Application.Commands.CreateDailyCuttingPlan;
+using SpaceOS.Modules.Cutting.Application.Queries.GetNestingResult;
+using SpaceOS.Modules.Cutting.Application.Queries.GetExecutionStatus;
+using SpaceOS.Modules.Cutting.Application.Queries.GetWasteReport;
+using SpaceOS.Modules.Cutting.Application.Queries.GetDailyCuttingPlan;
+
+namespace SpaceOS.Modules.Cutting.Api.Endpoints;
+
+public static class CuttingEndpoints
+{
+    public static IEndpointRouteBuilder MapCuttingEndpoints(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/api/cutting")
+            .RequireAuthorization("ManufacturerOnly");
+
+        group.MapPost("/sheets", SubmitCuttingSheet);
+        group.MapGet("/sheets/{id:guid}/nesting", GetNestingResult);
+        group.MapGet("/sheets/{id:guid}/status", GetExecutionStatus);
+        group.MapGet("/waste", GetWasteReport);
+        group.MapPost("/plans", CreateDailyCuttingPlan);
+        group.MapGet("/plans/{date}", GetDailyCuttingPlan);
+
+        return app;
+    }
+
+    private static async Task<IResult> SubmitCuttingSheet(
+        SubmitSheetRequest request,
+        IMediator mediator,
+        HttpContext httpContext,
+        CancellationToken ct)
+    {
+        var tenantId = GetTenantId(httpContext);
+        if (tenantId == Guid.Empty) return Results.Unauthorized();
+
+        var lines = request.Lines.Select(l => new CuttingLineInput(l.PartName, l.MaterialType, l.WidthMm, l.HeightMm, l.ThicknessMm, l.Quantity, l.Notes)).ToList();
+        var command = new SubmitCuttingSheetCommand(tenantId, request.OrderReference, lines);
+        var result = await mediator.Send(command, ct).ConfigureAwait(false);
+        return result.IsSuccess ? Results.Ok(new { Id = result.Value }) : Results.BadRequest(result.Errors);
+    }
+
+    private static async Task<IResult> GetNestingResult(Guid id, IMediator mediator, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetNestingResultQuery(id), ct).ConfigureAwait(false);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(result.Errors);
+    }
+
+    private static async Task<IResult> GetExecutionStatus(Guid id, IMediator mediator, CancellationToken ct)
+    {
+        var result = await mediator.Send(new GetExecutionStatusQuery(id), ct).ConfigureAwait(false);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(result.Errors);
+    }
+
+    private static async Task<IResult> GetWasteReport(
+        DateTime? from, DateTime? to,
+        IMediator mediator, CancellationToken ct)
+    {
+        var query = new GetWasteReportQuery(from ?? DateTime.UtcNow.AddMonths(-1), to ?? DateTime.UtcNow);
+        var result = await mediator.Send(query, ct).ConfigureAwait(false);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.BadRequest(result.Errors);
+    }
+
+    private static async Task<IResult> CreateDailyCuttingPlan(
+        CreatePlanRequest request,
+        IMediator mediator,
+        HttpContext httpContext,
+        CancellationToken ct)
+    {
+        var tenantId = GetTenantId(httpContext);
+        if (tenantId == Guid.Empty) return Results.Unauthorized();
+
+        var batches = request.Batches.Select(b => new CuttingBatchInput(b.MaterialType, b.ThicknessMm, b.SheetIds)).ToList();
+        var command = new CreateDailyCuttingPlanCommand(tenantId, request.PlanDate, batches);
+        var result = await mediator.Send(command, ct).ConfigureAwait(false);
+        return result.IsSuccess ? Results.Ok(new { Id = result.Value }) : Results.BadRequest(result.Errors);
+    }
+
+    private static async Task<IResult> GetDailyCuttingPlan(
+        string date, IMediator mediator, CancellationToken ct)
+    {
+        if (!DateTime.TryParse(date, out var planDate))
+            return Results.BadRequest("Invalid date format. Use yyyy-MM-dd.");
+        var result = await mediator.Send(new GetDailyCuttingPlanQuery(planDate), ct).ConfigureAwait(false);
+        return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound(result.Errors);
+    }
+
+    private static Guid GetTenantId(HttpContext ctx)
+    {
+        var claim = ctx.User?.FindFirst("tenant_id")?.Value;
+        return Guid.TryParse(claim, out var id) ? id : Guid.Empty;
+    }
+}
+
+public sealed record SubmitSheetLineRequest(string PartName, string MaterialType, decimal WidthMm, decimal HeightMm, decimal ThicknessMm, int Quantity, string? Notes);
+public sealed record SubmitSheetRequest(string OrderReference, IReadOnlyList<SubmitSheetLineRequest> Lines);
+public sealed record CreateBatchRequest(string MaterialType, decimal ThicknessMm, IReadOnlyList<Guid> SheetIds);
+public sealed record CreatePlanRequest(DateTime PlanDate, IReadOnlyList<CreateBatchRequest> Batches);

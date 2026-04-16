@@ -78,8 +78,18 @@ public class ContractSmokeTests
     {
         var props = typeof(OffcutDto).GetProperties().Select(p => p.Name).ToList();
         props.Should().Contain("Id");
-        props.Should().Contain("Width");
-        props.Should().Contain("Height");
+        props.Should().Contain("WidthMm");
+        props.Should().Contain("HeightMm");
+        props.Should().Contain("MaterialType");
+    }
+
+    [Fact]
+    public void PanelStockDto_HasDimensionProperties()
+    {
+        var props = typeof(PanelStockDto).GetProperties().Select(p => p.Name).ToList();
+        props.Should().Contain("WidthMm");
+        props.Should().Contain("HeightMm");
+        props.Should().Contain("FullPanelCount");
         props.Should().Contain("MaterialType");
     }
 }
