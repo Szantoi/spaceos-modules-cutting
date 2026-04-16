@@ -15,7 +15,7 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
     {
         var claims = new[] {
             new Claim(ClaimTypes.Name, "testuser"),
-            new Claim("tenant_id", Guid.NewGuid().ToString()),
+            new Claim("tid", Guid.NewGuid().ToString()),
             new Claim(ClaimTypes.Role, "Manufacturer")
         };
         var ticket = new AuthenticationTicket(new ClaimsPrincipal(new ClaimsIdentity(claims, "Test")), "Test");
