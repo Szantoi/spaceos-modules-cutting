@@ -12,7 +12,7 @@ builder.Services.AddAuthorization(opts =>
 var connectionString = builder.Configuration.GetConnectionString("Cutting")
     ?? "Host=localhost;Database=spaceos;Username=spaceos_app;Password=changeme";
 
-builder.Services.AddCuttingInfrastructure(connectionString);
+builder.Services.AddCuttingInfrastructure(connectionString, builder.Configuration);
 
 var app = builder.Build();
 app.UseAuthentication();
