@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SpaceOS.Modules.Cutting.Contracts.Providers;
 using SpaceOS.Modules.Cutting.Domain.Interfaces;
+using SpaceOS.Modules.Inventory.Contracts.Providers;
 using SpaceOS.Modules.Cutting.Domain.Services;
 using SpaceOS.Modules.Cutting.Infrastructure.Adapters;
 using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
@@ -28,6 +29,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICuttingRepository, CuttingRepository>();
         services.AddScoped<ICuttingTenantAccessor, HttpContextCuttingTenantAccessor>();
         services.AddScoped<ICuttingProvider, CuttingProviderAdapter>();
+        services.AddScoped<IInventoryProvider, InventoryProviderStub>();
         services.AddSingleton<NestingService>();
 
         return services;
