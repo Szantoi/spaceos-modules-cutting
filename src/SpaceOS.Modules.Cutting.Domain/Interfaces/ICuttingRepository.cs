@@ -19,4 +19,7 @@ public interface ICuttingRepository
     Task<IReadOnlyList<CuttingExecution>> GetCompletedExecutionsInRangeAsync(DateTime from, DateTime to, CancellationToken ct = default);
 
     Task SaveChangesAsync(CancellationToken ct = default);
+
+    // Internal / test-reset operations
+    Task<(int CuttingSheets, int DailyCuttingPlans)> DeleteByTenantAsync(Guid tenantId, CancellationToken ct = default);
 }

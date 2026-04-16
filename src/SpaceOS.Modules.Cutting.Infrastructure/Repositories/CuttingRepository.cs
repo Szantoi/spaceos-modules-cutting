@@ -55,4 +55,20 @@ public class CuttingRepository : ICuttingRepository
 
     public async Task SaveChangesAsync(CancellationToken ct = default)
         => await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+
+    public async Task<(int CuttingSheets, int DailyCuttingPlans)> DeleteByTenantAsync(Guid tenantId, CancellationToken ct = default)
+    {
+        var plans = await _db.DailyCuttingPlans
+            .Where(p => p.TenantId == tenantId)
+            .ToListAsync(ct).ConfigureAwait(false);
+        _db.DailyCuttingPlans.RemoveRange(plans);
+
+        var sheets = await _db.CuttingSheets
+            .Where(s => s.TenantId == tenantId)
+            .ToListAsync(ct).ConfigureAwait(false);
+        _db.CuttingSheets.RemoveRange(sheets);
+
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        return (sheets.Count, plans.Count);
+    }
 }
