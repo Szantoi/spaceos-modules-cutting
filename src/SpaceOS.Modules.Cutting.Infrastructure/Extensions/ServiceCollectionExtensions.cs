@@ -15,12 +15,17 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         string connectionString)
     {
-        services.AddDbContext<CuttingDbContext>(options =>
+        services.AddHttpContextAccessor();
+        services.AddSingleton<TenantSessionInterceptor>();
+
+        services.AddDbContext<CuttingDbContext>((sp, options) =>
+        {
             options.UseNpgsql(connectionString, npg =>
-                npg.MigrationsHistoryTable("__EFMigrationsHistory", "spaceos_cutting")));
+                npg.MigrationsHistoryTable("__EFMigrationsHistory", "spaceos_cutting"));
+            options.AddInterceptors(sp.GetRequiredService<TenantSessionInterceptor>());
+        });
 
         services.AddScoped<ICuttingRepository, CuttingRepository>();
-        services.AddHttpContextAccessor();
         services.AddScoped<ICuttingTenantAccessor, HttpContextCuttingTenantAccessor>();
         services.AddScoped<ICuttingProvider, CuttingProviderAdapter>();
         services.AddSingleton<NestingService>();
