@@ -58,21 +58,32 @@ public static class InternalEndpoints
             return Results.StatusCode(403);
         }
 
-        // Set tenant GUC manually — no Bearer token in internal calls, TenantSessionInterceptor would set empty string
+        // Pin a single connection so set_config and DeleteByTenantAsync share the same physical connection.
+        // Without this, pool may hand out different connections and the GUC is lost.
         if (dbContext.Database.IsRelational())
         {
+            await dbContext.Database.OpenConnectionAsync(ct).ConfigureAwait(false);
             var tenantIdStr = tenantGuid.ToString();
             await dbContext.Database.ExecuteSqlAsync(
                 $"SELECT set_config('app.current_tenant_id', {tenantIdStr}, false)", ct)
                 .ConfigureAwait(false);
         }
 
-        var (sheets, plans) = await repo.DeleteByTenantAsync(tenantGuid, ct).ConfigureAwait(false);
+        (int sheets, int plans) counts;
+        try
+        {
+            counts = await repo.DeleteByTenantAsync(tenantGuid, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (dbContext.Database.IsRelational())
+                await dbContext.Database.CloseConnectionAsync().ConfigureAwait(false);
+        }
 
         return Results.Ok(new
         {
             tenantId = tenantGuid,
-            deletedCounts = new { cuttingSheets = sheets, dailyCuttingPlans = plans }
+            deletedCounts = new { cuttingSheets = counts.sheets, dailyCuttingPlans = counts.plans }
         });
     }
 }
