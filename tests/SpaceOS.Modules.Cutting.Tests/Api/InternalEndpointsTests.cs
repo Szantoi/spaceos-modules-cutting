@@ -4,10 +4,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using SpaceOS.Modules.Cutting.Api.Endpoints;
 using SpaceOS.Modules.Cutting.Domain.Interfaces;
+using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
 using Xunit;
 
 namespace SpaceOS.Modules.Cutting.Tests.Api;
@@ -27,6 +29,8 @@ public class InternalEndpointsTests : IDisposable
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton(_repoMock.Object);
+        builder.Services.AddDbContext<CuttingDbContext>(opts =>
+            opts.UseInMemoryDatabase("test-cutting-internal"));
         builder.Services.AddLogging();
         builder.Services.AddRouting();
         builder.Services.AddAuthorization();

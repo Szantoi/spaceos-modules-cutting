@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using SpaceOS.Modules.Cutting.Domain.Interfaces;
+using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
 
 namespace SpaceOS.Modules.Cutting.Api.Endpoints;
 
@@ -24,6 +26,7 @@ public static class InternalEndpoints
         string? confirm,
         HttpRequest request,
         ICuttingRepository repo,
+        CuttingDbContext dbContext,
         ILogger<Program> logger,
         CancellationToken ct)
     {
@@ -53,6 +56,15 @@ public static class InternalEndpoints
             logger.LogWarning(
                 "DeleteByTenant rejected: tenant {TenantId} not in TEST_TENANT_ALLOWLIST", tenantGuid);
             return Results.StatusCode(403);
+        }
+
+        // Set tenant GUC manually — no Bearer token in internal calls, TenantSessionInterceptor would set empty string
+        if (dbContext.Database.IsRelational())
+        {
+            var tenantIdStr = tenantGuid.ToString();
+            await dbContext.Database.ExecuteSqlAsync(
+                $"SELECT set_config('app.current_tenant_id', {tenantIdStr}, false)", ct)
+                .ConfigureAwait(false);
         }
 
         var (sheets, plans) = await repo.DeleteByTenantAsync(tenantGuid, ct).ConfigureAwait(false);
