@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.EntityFrameworkCore;
 using SpaceOS.Modules.Cutting.Application.Commands.SubmitCuttingSheet;
 using SpaceOS.Modules.Cutting.Application.Commands.CreateDailyCuttingPlan;
 using SpaceOS.Modules.Cutting.Application.Queries.GetNestingResult;
@@ -98,18 +99,27 @@ public static class CuttingEndpoints
 
         var batches = (request.Batches ?? []).Select(b => new CuttingBatchInput(b.MaterialType, b.ThicknessMm, b.SheetIds)).ToList();
         var command = new CreateDailyCuttingPlanCommand(tenantId, request.Name, planDate, batches);
-        var result = await mediator.Send(command, ct).ConfigureAwait(false);
-        if (!result.IsSuccess)
-            return Results.BadRequest(result.Errors);
 
-        var responseObj = new
+        try
         {
-            id = result.Value,
-            name = request.Name,
-            date = planDate.ToString("yyyy-MM-dd"),
-            status = "Draft"
-        };
-        return Results.Created($"/api/cutting/plans/{planDate:yyyy-MM-dd}", responseObj);
+            var result = await mediator.Send(command, ct).ConfigureAwait(false);
+            if (!result.IsSuccess)
+                return Results.BadRequest(result.Errors);
+
+            var responseObj = new
+            {
+                id = result.Value,
+                name = request.Name,
+                date = planDate.ToString("yyyy-MM-dd"),
+                status = "Draft"
+            };
+            return Results.Created($"/api/cutting/plans/{planDate:yyyy-MM-dd}", responseObj);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("23505") == true
+                                        || ex.InnerException?.Message.Contains("duplicate key") == true)
+        {
+            return Results.Conflict(new { error = $"A cutting plan for {planDate:yyyy-MM-dd} already exists." });
+        }
     }
 
     private static async Task<IResult> GetDailyCuttingPlan(
