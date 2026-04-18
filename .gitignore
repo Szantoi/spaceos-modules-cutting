@@ -3,3 +3,7 @@ obj/
 nupkg/
 *.user
 .vs/
+
+# Build artifacts
+publish/
+publish.bak*/

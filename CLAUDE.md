@@ -1,10 +1,41 @@
 # SpaceOS.Modules.Cutting — CLAUDE.md
 
+## JELENLEGI ÁLLAPOT (2026-04-17)
+
+| | |
+|---|---|
+| **Terminál** | cutting · Port: **5005** · Mailbox: `/opt/spaceos/docs/mailbox/cutting/` |
+| **Aktuális commit** | `64fcf55` (CUTTING-015: OpenConnectionAsync affinity fix) |
+| **Tesztek** | **77/77 pass** |
+| **VPS** | LIVE ✅ |
+
+### TenantGucKey
+```
+TenantGucKey = "app.current_tenant_id"
+```
+
+### InternalEndpoints.cs — OpenConnectionAsync minta (KÖTELEZŐ)
+```csharp
+if (dbContext.Database.IsRelational())
+    await dbContext.Database.OpenConnectionAsync(ct);
+try {
+    if (dbContext.Database.IsRelational())
+        await dbContext.Database.ExecuteSqlAsync(
+            $"SELECT set_config('{TenantGucKey}', {tenantIdStr}, false)", ct);
+    counts = await repo.DeleteByTenantAsync(tenantGuid, ct);
+} finally {
+    if (dbContext.Database.IsRelational())
+        await dbContext.Database.CloseConnectionAsync();
+}
+```
+
+---
+
 ## Stack
 - .NET 8, Clean Architecture + DDD + CQRS
 - PostgreSQL 16 sémák: `spaceos_inventory` · `spaceos_cutting` · `spaceos_procurement`
 - EF Core 8 + Npgsql 8.0.11
-- Port: **5004**
+- Port: **5005**
 
 ## Approved packages
 MediatR 12.4.1 · FluentValidation 12.1.1 · Ardalis.Result 10.1.0 · Ardalis.Specification 8.0.0

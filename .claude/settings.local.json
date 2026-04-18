@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build:*)",
+      "Bash(dotnet --version)",
+      "Bash(dotnet add:*)",
+      "Bash(dotnet test:*)",
+      "Bash(dotnet run:*)",
+      "Bash(dotnet pack:*)",
+      "Bash(dotnet new:*)",
+      "Bash(dotnet restore:*)",
+      "Bash(mkdir -p /opt/spaceos/spaceos-modules-cutting/**)",
+      "Bash(export PATH=$PATH:/usr/share/dotnet:/root/.dotnet)",
+      "Git *",
+      "Read(//usr/**)"
+    ]
+  }
+}
