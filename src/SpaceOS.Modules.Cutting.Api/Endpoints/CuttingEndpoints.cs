@@ -90,8 +90,11 @@ public static class CuttingEndpoints
         var tenantId = GetTenantId(httpContext);
         if (tenantId == Guid.Empty) return Results.Unauthorized();
 
-        if (!DateTime.TryParse(request.Date, out var planDate))
+        if (!DateTime.TryParse(request.Date, out var rawDate))
             return Results.BadRequest("Invalid date format. Use yyyy-MM-dd.");
+        // Npgsql requires DateTimeKind.Utc for 'timestamp with time zone' columns.
+        // DateTime.TryParse returns Kind=Unspecified which causes a runtime exception on SaveChanges.
+        var planDate = DateTime.SpecifyKind(rawDate.Date, DateTimeKind.Utc);
 
         var batches = (request.Batches ?? []).Select(b => new CuttingBatchInput(b.MaterialType, b.ThicknessMm, b.SheetIds)).ToList();
         var command = new CreateDailyCuttingPlanCommand(tenantId, request.Name, planDate, batches);
