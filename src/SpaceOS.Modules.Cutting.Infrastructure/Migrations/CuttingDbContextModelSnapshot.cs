@@ -54,6 +54,7 @@ namespace SpaceOS.Modules.Cutting.Infrastructure.Migrations
             modelBuilder.Entity("SpaceOS.Modules.Cutting.Domain.Aggregates.DailyCuttingPlan", b =>
             {
                 b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<string>("Name").HasMaxLength(200).HasColumnType("character varying(200)");
                 b.Property<DateTime>("PlanDate").HasColumnType("timestamp with time zone");
                 b.Property<string>("Status").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
                 b.Property<Guid>("TenantId").HasColumnType("uuid");

@@ -2,6 +2,7 @@ namespace SpaceOS.Modules.Cutting.Application.Queries.GetDailyCuttingPlan;
 
 public sealed record DailyCuttingPlanResponse(
     Guid Id,
+    string Name,
     DateTime PlanDate,
     string Status,
     IReadOnlyList<CuttingBatchResponse> Batches);

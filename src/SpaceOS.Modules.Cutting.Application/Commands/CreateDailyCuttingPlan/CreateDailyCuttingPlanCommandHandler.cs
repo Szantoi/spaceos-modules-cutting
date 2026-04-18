@@ -18,8 +18,8 @@ public sealed class CreateDailyCuttingPlanCommandHandler : IRequestHandler<Creat
     public async Task<Result<Guid>> Handle(CreateDailyCuttingPlanCommand request, CancellationToken ct)
     {
         var tempPlanId = Guid.NewGuid();
-        var batches = request.Batches.Select(b => CuttingBatch.Create(tempPlanId, b.MaterialType, b.ThicknessMm, b.SheetIds));
-        var plan = DailyCuttingPlan.Create(request.TenantId, request.PlanDate, batches);
+        var batches = (request.Batches ?? []).Select(b => CuttingBatch.Create(tempPlanId, b.MaterialType, b.ThicknessMm, b.SheetIds));
+        var plan = DailyCuttingPlan.Create(request.TenantId, request.Name, request.PlanDate, batches);
         plan.PopDomainEvents();
 
         await _repository.AddDailyCuttingPlanAsync(plan, ct).ConfigureAwait(false);

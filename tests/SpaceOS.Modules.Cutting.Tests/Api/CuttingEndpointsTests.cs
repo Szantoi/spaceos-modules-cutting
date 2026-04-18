@@ -17,17 +17,20 @@ using SpaceOS.Modules.Cutting.Application.Queries.GetNestingResult;
 using SpaceOS.Modules.Cutting.Application.Queries.GetExecutionStatus;
 using SpaceOS.Modules.Cutting.Application.Queries.GetWasteReport;
 using SpaceOS.Modules.Cutting.Application.Queries.GetDailyCuttingPlan;
+using SpaceOS.Modules.Cutting.Domain.Aggregates;
+using SpaceOS.Modules.Cutting.Domain.Interfaces;
 using Xunit;
 
 namespace SpaceOS.Modules.Cutting.Tests.Api;
 
 public class CuttingEndpointsTests
 {
-    private HttpClient CreateAuthClient(Mock<IMediator> mediatorMock)
+    private HttpClient CreateAuthClient(Mock<IMediator> mediatorMock, Mock<ICuttingRepository>? repoMock = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton(mediatorMock.Object);
+        builder.Services.AddSingleton((repoMock ?? new Mock<ICuttingRepository>()).Object);
         builder.Services.AddAuthentication("Test")
             .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", _ => { });
         builder.Services.AddAuthorization(opts =>
@@ -71,9 +74,11 @@ public class CuttingEndpointsTests
     public async Task SubmitCuttingSheet_WithoutAuth_Returns401()
     {
         var mediatorMock = new Mock<IMediator>();
+        var repoMock = new Mock<ICuttingRepository>();
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton(mediatorMock.Object);
+        builder.Services.AddSingleton(repoMock.Object);
         builder.Services.AddAuthentication("NoAuth")
             .AddScheme<AuthenticationSchemeOptions, NoAuthHandler>("NoAuth", _ => { });
         builder.Services.AddAuthorization(opts =>
@@ -145,7 +150,7 @@ public class CuttingEndpointsTests
     }
 
     [Fact]
-    public async Task CreateDailyCuttingPlan_WithAuth_Returns200()
+    public async Task CreateDailyCuttingPlan_WithAuth_Returns201()
     {
         var mediatorMock = new Mock<IMediator>();
         mediatorMock.Setup(m => m.Send(It.IsAny<CreateDailyCuttingPlanCommand>(), It.IsAny<CancellationToken>()))
@@ -154,11 +159,11 @@ public class CuttingEndpointsTests
         var client = CreateAuthClient(mediatorMock);
         var payload = new
         {
-            PlanDate = DateTime.UtcNow.Date,
-            Batches = new[] { new { MaterialType = "MDF 18mm", ThicknessMm = 18m, SheetIds = new[] { Guid.NewGuid() } } }
+            Name = "Teszt vágóterv 2026-04-18",
+            Date = "2026-04-18"
         };
         var response = await client.PostAsJsonAsync("/api/cutting/plans", payload);
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 
     [Fact]
@@ -167,7 +172,7 @@ public class CuttingEndpointsTests
         var mediatorMock = new Mock<IMediator>();
         mediatorMock.Setup(m => m.Send(It.IsAny<GetDailyCuttingPlanQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<DailyCuttingPlanResponse>.Success(
-                new DailyCuttingPlanResponse(Guid.NewGuid(), DateTime.UtcNow.Date, "Draft", new List<CuttingBatchResponse>())));
+                new DailyCuttingPlanResponse(Guid.NewGuid(), "Test Plan", DateTime.UtcNow.Date, "Draft", new List<CuttingBatchResponse>())));
 
         var client = CreateAuthClient(mediatorMock);
         var response = await client.GetAsync($"/api/cutting/plans/{DateTime.UtcNow:yyyy-MM-dd}");

@@ -8,6 +8,7 @@ using SpaceOS.Modules.Cutting.Application.Queries.GetNestingResult;
 using SpaceOS.Modules.Cutting.Application.Queries.GetExecutionStatus;
 using SpaceOS.Modules.Cutting.Application.Queries.GetWasteReport;
 using SpaceOS.Modules.Cutting.Application.Queries.GetDailyCuttingPlan;
+using SpaceOS.Modules.Cutting.Domain.Interfaces;
 
 namespace SpaceOS.Modules.Cutting.Api.Endpoints;
 
@@ -22,6 +23,7 @@ public static class CuttingEndpoints
         group.MapGet("/sheets/{id:guid}/nesting", GetNestingResult);
         group.MapGet("/sheets/{id:guid}/status", GetExecutionStatus);
         group.MapGet("/waste", GetWasteReport);
+        group.MapGet("/plans", GetAllCuttingPlans);
         group.MapPost("/plans", CreateDailyCuttingPlan);
         group.MapGet("/plans/{date}", GetDailyCuttingPlan);
 
@@ -64,6 +66,21 @@ public static class CuttingEndpoints
         return result.IsSuccess ? Results.Ok(result.Value) : Results.BadRequest(result.Errors);
     }
 
+    private static async Task<IResult> GetAllCuttingPlans(
+        ICuttingRepository repo,
+        CancellationToken ct)
+    {
+        var plans = await repo.GetAllDailyCuttingPlansAsync(ct).ConfigureAwait(false);
+        var result = plans.Select(p => new
+        {
+            id = p.Id,
+            name = p.Name,
+            date = p.PlanDate.ToString("yyyy-MM-dd"),
+            status = p.Status.ToString()
+        });
+        return Results.Ok(result);
+    }
+
     private static async Task<IResult> CreateDailyCuttingPlan(
         CreatePlanRequest request,
         IMediator mediator,
@@ -73,10 +90,23 @@ public static class CuttingEndpoints
         var tenantId = GetTenantId(httpContext);
         if (tenantId == Guid.Empty) return Results.Unauthorized();
 
-        var batches = request.Batches.Select(b => new CuttingBatchInput(b.MaterialType, b.ThicknessMm, b.SheetIds)).ToList();
-        var command = new CreateDailyCuttingPlanCommand(tenantId, request.PlanDate, batches);
+        if (!DateTime.TryParse(request.Date, out var planDate))
+            return Results.BadRequest("Invalid date format. Use yyyy-MM-dd.");
+
+        var batches = (request.Batches ?? []).Select(b => new CuttingBatchInput(b.MaterialType, b.ThicknessMm, b.SheetIds)).ToList();
+        var command = new CreateDailyCuttingPlanCommand(tenantId, request.Name, planDate, batches);
         var result = await mediator.Send(command, ct).ConfigureAwait(false);
-        return result.IsSuccess ? Results.Ok(new { Id = result.Value }) : Results.BadRequest(result.Errors);
+        if (!result.IsSuccess)
+            return Results.BadRequest(result.Errors);
+
+        var responseObj = new
+        {
+            id = result.Value,
+            name = request.Name,
+            date = planDate.ToString("yyyy-MM-dd"),
+            status = "Draft"
+        };
+        return Results.Created($"/api/cutting/plans/{planDate:yyyy-MM-dd}", responseObj);
     }
 
     private static async Task<IResult> GetDailyCuttingPlan(
@@ -98,4 +128,4 @@ public static class CuttingEndpoints
 public sealed record SubmitSheetLineRequest(string PartName, string MaterialType, decimal WidthMm, decimal HeightMm, decimal ThicknessMm, int Quantity, string? Notes);
 public sealed record SubmitSheetRequest(string OrderReference, IReadOnlyList<SubmitSheetLineRequest> Lines);
 public sealed record CreateBatchRequest(string MaterialType, decimal ThicknessMm, IReadOnlyList<Guid> SheetIds);
-public sealed record CreatePlanRequest(DateTime PlanDate, IReadOnlyList<CreateBatchRequest> Batches);
+public sealed record CreatePlanRequest(string Name, string Date, IReadOnlyList<CreateBatchRequest>? Batches = null);

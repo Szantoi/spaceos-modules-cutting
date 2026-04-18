@@ -24,6 +24,6 @@ public sealed class GetDailyCuttingPlanQueryHandler : IRequestHandler<GetDailyCu
             .ToList();
 
         return Result<DailyCuttingPlanResponse>.Success(new DailyCuttingPlanResponse(
-            plan.Id, plan.PlanDate, plan.Status.ToString(), batches));
+            plan.Id, plan.Name, plan.PlanDate, plan.Status.ToString(), batches));
     }
 }

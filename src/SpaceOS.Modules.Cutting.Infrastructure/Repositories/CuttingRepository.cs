@@ -39,6 +39,13 @@ public class CuttingRepository : ICuttingRepository
             .FirstOrDefaultAsync(p => p.PlanDate == planDate.Date, ct)
             .ConfigureAwait(false);
 
+    public async Task<IReadOnlyList<DailyCuttingPlan>> GetAllDailyCuttingPlansAsync(CancellationToken ct = default)
+        => await _db.DailyCuttingPlans.AsNoTracking()
+            .Include(p => p.Batches)
+            .OrderByDescending(p => p.PlanDate)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
     public async Task AddCuttingExecutionAsync(CuttingExecution execution, CancellationToken ct = default)
         => await _db.CuttingExecutions.AddAsync(execution, ct).ConfigureAwait(false);
 

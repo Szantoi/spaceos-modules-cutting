@@ -7,5 +7,6 @@ public sealed record CuttingBatchInput(string MaterialType, decimal ThicknessMm,
 
 public sealed record CreateDailyCuttingPlanCommand(
     Guid TenantId,
+    string Name,
     DateTime PlanDate,
     IReadOnlyList<CuttingBatchInput> Batches) : IRequest<Result<Guid>>;

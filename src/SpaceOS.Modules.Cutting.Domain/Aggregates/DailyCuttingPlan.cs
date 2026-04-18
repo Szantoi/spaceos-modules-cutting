@@ -8,6 +8,7 @@ public class DailyCuttingPlan : AggregateRoot
 {
     public Guid Id { get; private set; }
     public Guid TenantId { get; private set; }
+    public string Name { get; private set; } = string.Empty;
     public DateTime PlanDate { get; private set; }
     public DailyPlanStatus Status { get; private set; }
     private readonly List<CuttingBatch> _batches = new();
@@ -15,14 +16,16 @@ public class DailyCuttingPlan : AggregateRoot
 
     private DailyCuttingPlan() { }
 
-    public static DailyCuttingPlan Create(Guid tenantId, DateTime planDate, IEnumerable<CuttingBatch> batches)
+    public static DailyCuttingPlan Create(Guid tenantId, string name, DateTime planDate, IEnumerable<CuttingBatch> batches)
     {
         if (tenantId == Guid.Empty) throw new ArgumentException("TenantId required.", nameof(tenantId));
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Name is required.", nameof(name));
 
         var plan = new DailyCuttingPlan
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
+            Name = name,
             PlanDate = planDate.Date,
             Status = DailyPlanStatus.Draft
         };

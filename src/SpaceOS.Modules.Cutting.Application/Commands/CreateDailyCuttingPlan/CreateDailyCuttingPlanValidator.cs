@@ -7,7 +7,7 @@ public sealed class CreateDailyCuttingPlanValidator : AbstractValidator<CreateDa
     public CreateDailyCuttingPlanValidator()
     {
         RuleFor(x => x.TenantId).NotEmpty();
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.PlanDate).NotEqual(default(DateTime));
-        RuleFor(x => x.Batches).NotEmpty();
     }
 }

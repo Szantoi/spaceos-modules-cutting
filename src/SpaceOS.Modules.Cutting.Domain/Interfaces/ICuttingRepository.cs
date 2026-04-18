@@ -12,6 +12,7 @@ public interface ICuttingRepository
     // DailyCuttingPlan
     Task AddDailyCuttingPlanAsync(DailyCuttingPlan plan, CancellationToken ct = default);
     Task<DailyCuttingPlan?> GetDailyCuttingPlanByDateAsync(DateTime planDate, CancellationToken ct = default);
+    Task<IReadOnlyList<DailyCuttingPlan>> GetAllDailyCuttingPlansAsync(CancellationToken ct = default);
 
     // CuttingExecution
     Task AddCuttingExecutionAsync(CuttingExecution execution, CancellationToken ct = default);

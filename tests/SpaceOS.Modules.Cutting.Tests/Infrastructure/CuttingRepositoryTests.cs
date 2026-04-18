@@ -71,7 +71,7 @@ public class CuttingRepositoryTests : IDisposable
         await _repo.SaveChangesAsync();
 
         var batch = CuttingBatch.Create(Guid.NewGuid(), "MDF 18mm", 18m, new[] { sheet.Id });
-        var plan = DailyCuttingPlan.Create(_tenantId, DateTime.UtcNow.Date, new[] { batch });
+        var plan = DailyCuttingPlan.Create(_tenantId, "Test Plan", DateTime.UtcNow.Date, new[] { batch });
         await _repo.AddDailyCuttingPlanAsync(plan);
         await _repo.SaveChangesAsync();
 
