@@ -19,6 +19,13 @@ public interface ICuttingRepository
     Task<CuttingExecution?> GetExecutionBySheetIdAsync(Guid sheetId, CancellationToken ct = default);
     Task<IReadOnlyList<CuttingExecution>> GetCompletedExecutionsInRangeAsync(DateTime from, DateTime to, CancellationToken ct = default);
 
+    // CuttingPlan (planning aggregate)
+    Task AddCuttingPlanAsync(CuttingPlan plan, CancellationToken ct = default);
+    Task<CuttingPlan?> GetCuttingPlanByIdAsync(Guid planId, CancellationToken ct = default);
+    Task<CuttingPlan?> GetCuttingPlanTrackedAsync(Guid planId, CancellationToken ct = default);
+    Task<IReadOnlyList<CuttingPlan>> GetAllCuttingPlansAsync(CancellationToken ct = default);
+    Task<CuttingJob?> GetCuttingJobTrackedAsync(Guid jobId, CancellationToken ct = default);
+
     Task SaveChangesAsync(CancellationToken ct = default);
 
     // Internal / test-reset operations

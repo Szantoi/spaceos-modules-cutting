@@ -28,6 +28,7 @@ if (app.Environment.IsProduction() || app.Environment.IsEnvironment("Staging"))
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapCuttingEndpoints();
+app.MapCuttingPlanningEndpoints();
 app.MapInternalEndpoints();
 app.Run();
 

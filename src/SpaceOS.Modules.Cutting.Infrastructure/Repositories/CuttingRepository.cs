@@ -60,6 +60,33 @@ public class CuttingRepository : ICuttingRepository
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+    public async Task AddCuttingPlanAsync(CuttingPlan plan, CancellationToken ct = default)
+        => await _db.CuttingPlans.AddAsync(plan, ct).ConfigureAwait(false);
+
+    public async Task<CuttingPlan?> GetCuttingPlanByIdAsync(Guid planId, CancellationToken ct = default)
+        => await _db.CuttingPlans.AsNoTracking()
+            .Include(p => p.DailyPlans)
+                .ThenInclude(d => d.Jobs)
+            .FirstOrDefaultAsync(p => p.Id == planId, ct)
+            .ConfigureAwait(false);
+
+    public async Task<CuttingPlan?> GetCuttingPlanTrackedAsync(Guid planId, CancellationToken ct = default)
+        => await _db.CuttingPlans
+            .FirstOrDefaultAsync(p => p.Id == planId, ct)
+            .ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<CuttingPlan>> GetAllCuttingPlansAsync(CancellationToken ct = default)
+        => await _db.CuttingPlans.AsNoTracking()
+            .Include(p => p.DailyPlans)
+            .OrderByDescending(p => p.PlanDate)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+    public async Task<CuttingJob?> GetCuttingJobTrackedAsync(Guid jobId, CancellationToken ct = default)
+        => await _db.CuttingJobs
+            .FirstOrDefaultAsync(j => j.Id == jobId, ct)
+            .ConfigureAwait(false);
+
     public async Task SaveChangesAsync(CancellationToken ct = default)
         => await _db.SaveChangesAsync(ct).ConfigureAwait(false);
 

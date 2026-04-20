@@ -1,0 +1,24 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using SpaceOS.Modules.Cutting.Domain.Aggregates;
+
+namespace SpaceOS.Modules.Cutting.Infrastructure.Persistence.Configurations;
+
+public class CuttingPlanConfiguration : IEntityTypeConfiguration<CuttingPlan>
+{
+    public void Configure(EntityTypeBuilder<CuttingPlan> builder)
+    {
+        builder.ToTable("CuttingPlans");
+        builder.HasKey(x => x.Id);
+        builder.Property(x => x.TenantId).IsRequired();
+        builder.Property(x => x.PlanDate).IsRequired();
+        builder.Property(x => x.PlanDays).IsRequired();
+        builder.Property(x => x.Status).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.StrategyId).IsRequired().HasMaxLength(50);
+        builder.Property(x => x.CreatedAt).IsRequired();
+        builder.Property(x => x.UpdatedAt).IsRequired();
+        builder.HasMany(x => x.DailyPlans).WithOne().HasForeignKey(d => d.CuttingPlanId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(x => x.TenantId);
+        builder.HasIndex(x => new { x.TenantId, x.PlanDate });
+    }
+}

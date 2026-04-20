@@ -120,6 +120,76 @@ namespace SpaceOS.Modules.Cutting.Infrastructure.Migrations
             {
                 b.Navigation("Batches");
             });
+
+            modelBuilder.Entity("SpaceOS.Modules.Cutting.Domain.Aggregates.CuttingPlan", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<DateTime>("PlanDate").HasColumnType("timestamp with time zone");
+                b.Property<int>("PlanDays").HasColumnType("integer");
+                b.Property<string>("Status").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<string>("StrategyId").IsRequired().HasMaxLength(50).HasColumnType("character varying(50)");
+                b.Property<Guid>("TenantId").HasColumnType("uuid");
+                b.Property<DateTime>("CreatedAt").HasColumnType("timestamp with time zone");
+                b.Property<DateTime>("UpdatedAt").HasColumnType("timestamp with time zone");
+                b.HasKey("Id");
+                b.HasIndex("TenantId");
+                b.HasIndex("TenantId", "PlanDate");
+                b.ToTable("CuttingPlans", "spaceos_cutting");
+            });
+
+            modelBuilder.Entity("SpaceOS.Modules.Cutting.Domain.Aggregates.DailyPlan", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("CuttingPlanId").HasColumnType("uuid");
+                b.Property<DateTime>("Date").HasColumnType("timestamp with time zone");
+                b.Property<decimal>("AvailableCapacity").HasPrecision(8, 2).HasColumnType("numeric(8,2)");
+                b.HasKey("Id");
+                b.HasIndex("CuttingPlanId");
+                b.ToTable("DailyPlans", "spaceos_cutting");
+            });
+
+            modelBuilder.Entity("SpaceOS.Modules.Cutting.Domain.Aggregates.CuttingJob", b =>
+            {
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uuid");
+                b.Property<Guid>("DailyPlanId").HasColumnType("uuid");
+                b.Property<Guid>("OrderId").HasColumnType("uuid");
+                b.Property<DateTime>("ScheduledDate").HasColumnType("timestamp with time zone");
+                b.Property<string>("Priority").IsRequired().HasMaxLength(20).HasColumnType("character varying(20)");
+                b.Property<decimal>("EstimatedTimeHours").HasPrecision(8, 2).HasColumnType("numeric(8,2)");
+                b.Property<string>("Status").IsRequired().HasMaxLength(30).HasColumnType("character varying(30)");
+                b.HasKey("Id");
+                b.HasIndex("DailyPlanId");
+                b.HasIndex("OrderId");
+                b.ToTable("CuttingJobs", "spaceos_cutting");
+            });
+
+            modelBuilder.Entity("SpaceOS.Modules.Cutting.Domain.Aggregates.DailyPlan", b =>
+            {
+                b.HasOne("SpaceOS.Modules.Cutting.Domain.Aggregates.CuttingPlan", null)
+                    .WithMany("DailyPlans")
+                    .HasForeignKey("CuttingPlanId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+            });
+
+            modelBuilder.Entity("SpaceOS.Modules.Cutting.Domain.Aggregates.CuttingJob", b =>
+            {
+                b.HasOne("SpaceOS.Modules.Cutting.Domain.Aggregates.DailyPlan", null)
+                    .WithMany("Jobs")
+                    .HasForeignKey("DailyPlanId")
+                    .OnDelete(DeleteBehavior.Cascade)
+                    .IsRequired();
+            });
+
+            modelBuilder.Entity("SpaceOS.Modules.Cutting.Domain.Aggregates.CuttingPlan", b =>
+            {
+                b.Navigation("DailyPlans");
+            });
+
+            modelBuilder.Entity("SpaceOS.Modules.Cutting.Domain.Aggregates.DailyPlan", b =>
+            {
+                b.Navigation("Jobs");
+            });
 #pragma warning restore 612, 618
         }
     }

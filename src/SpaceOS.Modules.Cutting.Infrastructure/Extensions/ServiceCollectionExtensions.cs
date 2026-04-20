@@ -1,10 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SpaceOS.Modules.Cutting.Application.Events;
 using SpaceOS.Modules.Cutting.Contracts.Providers;
 using SpaceOS.Modules.Cutting.Domain.Interfaces;
 using SpaceOS.Modules.Cutting.Domain.Services;
 using SpaceOS.Modules.Cutting.Infrastructure.Adapters;
+using SpaceOS.Modules.Cutting.Infrastructure.Events;
 using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
 using SpaceOS.Modules.Cutting.Infrastructure.Repositories;
 using SpaceOS.Modules.Inventory.Contracts.Providers;
@@ -34,6 +36,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<NestingService>();
 
         services.AddHttpClient<IInventoryProvider, InventoryProviderHttpAdapter>(client =>
+        {
+            client.BaseAddress = new Uri(configuration["InventoryService:BaseUrl"] ?? "http://127.0.0.1:5004");
+        });
+
+        services.AddHttpClient<ICuttingEventPublisher, CuttingEventPublisher>(client =>
         {
             client.BaseAddress = new Uri(configuration["InventoryService:BaseUrl"] ?? "http://127.0.0.1:5004");
         });
