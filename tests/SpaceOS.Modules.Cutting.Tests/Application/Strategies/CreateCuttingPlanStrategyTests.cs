@@ -3,6 +3,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using SpaceOS.Modules.Cutting.Application.Commands.CreateCuttingPlan;
 using SpaceOS.Modules.Cutting.Application.Strategies;
+using SpaceOS.Modules.Cutting.Domain.Services;
 using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
 using SpaceOS.Modules.Cutting.Infrastructure.Repositories;
 using Xunit;
@@ -33,7 +34,7 @@ public class CreateCuttingPlanStrategyTests : IDisposable
     }
 
     private CreateCuttingPlanCommandHandler BuildHandler()
-        => new(_repo, _factory);
+        => new(_repo, _factory, new AreaCapacityModel());
 
     [Fact]
     public async Task Handle_WithMaxcutV1_Returns201AndYieldAbove91Percent()

@@ -1,6 +1,7 @@
 using FluentAssertions;
 using SpaceOS.Modules.Cutting.Application.Strategies;
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
+using SpaceOS.Modules.Cutting.Domain.Services;
 using Xunit;
 
 namespace SpaceOS.Modules.Cutting.Tests.Application.Strategies;
@@ -18,7 +19,7 @@ public class FIFOStrategyTests
     {
         var strategy = new FIFOStrategy();
         var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "fifo");
-        var slots = plan.DailyPlans.ToList();
+        var slots = plan.DaySlots.ToList();
 
         var newerJob = MakeJob(TodayUtc.AddDays(5), 2m);
         var olderJob = MakeJob(TodayUtc, 2m);
@@ -26,7 +27,6 @@ public class FIFOStrategyTests
         var scheduled = (await strategy.ScheduleJobsAsync(
             new[] { newerJob, olderJob }, slots, default)).ToList();
 
-        // Older job should have been allocated first → sits in slot 0
         scheduled[0].OrderId.Should().Be(olderJob.OrderId);
         scheduled[1].OrderId.Should().Be(newerJob.OrderId);
     }
@@ -37,12 +37,11 @@ public class FIFOStrategyTests
         var strategy = new FIFOStrategy();
         var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "fifo");
 
-        // 7 jobs with ascending dates → all should be scheduled sequentially
         var jobs = Enumerable.Range(0, 7)
             .Select(i => MakeJob(TodayUtc.AddDays(i), 4m))
             .ToList();
 
-        var scheduled = (await strategy.ScheduleJobsAsync(jobs, plan.DailyPlans, default)).ToList();
+        var scheduled = (await strategy.ScheduleJobsAsync(jobs, plan.DaySlots, default)).ToList();
 
         scheduled.Should().HaveCount(7);
     }
@@ -52,14 +51,14 @@ public class FIFOStrategyTests
     {
         var strategy = new FIFOStrategy();
         var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "fifo");
-        var slots = plan.DailyPlans.ToList();
+        var slots = plan.DaySlots.ToList();
 
-        // Fill only half capacity: 4h per slot of 8h → 50% yield
-        var jobs = slots.Select(d => MakeJob(d.Date, 4m)).ToList();
+        var jobs = slots.Select(d =>
+            MakeJob(d.SlotDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc), 4m)).ToList();
         var scheduled = (await strategy.ScheduleJobsAsync(jobs, slots, default)).ToList();
 
         foreach (var job in scheduled)
-            slots.First(d => d.Id == job.DailyPlanId).AddJob(job);
+            slots.First(d => d.Id == job.DaySlotId).AddJob(job, new AreaCapacityModel());
 
         var yield = strategy.CalculateYield(plan, slots);
         yield.Should().BeGreaterThan(0m).And.BeLessThan(100m);

@@ -19,11 +19,11 @@ public sealed class GetCuttingPlanQueryHandler : IRequestHandler<GetCuttingPlanQ
         if (plan is null)
             return Result<CuttingPlanResponse>.NotFound($"CuttingPlan {request.PlanId} not found.");
 
-        var dailyPlans = plan.DailyPlans.Select(d => new DailyPlanResponse(
+        var dailyPlans = plan.DaySlots.Select(d => new DailyPlanResponse(
             d.Id,
-            d.Date.ToString("yyyy-MM-dd"),
-            d.AvailableCapacity,
-            d.AllocatedCapacity,
+            d.SlotDate.ToString("yyyy-MM-dd"),
+            d.CapacityHours,
+            d.UsedCapacityHours,
             d.UtilizationPercent,
             d.Jobs.Select(j => new CuttingJobResponse(
                 j.Id,
@@ -38,7 +38,7 @@ public sealed class GetCuttingPlanQueryHandler : IRequestHandler<GetCuttingPlanQ
             plan.Id,
             plan.PlanDate.ToString("yyyy-MM-dd"),
             plan.PlanDays,
-            plan.Status,
+            plan.Status.ToString(),
             plan.StrategyId,
             dailyPlans);
 

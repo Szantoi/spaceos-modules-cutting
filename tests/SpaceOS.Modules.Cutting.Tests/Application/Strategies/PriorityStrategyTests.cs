@@ -1,6 +1,7 @@
 using FluentAssertions;
 using SpaceOS.Modules.Cutting.Application.Strategies;
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
+using SpaceOS.Modules.Cutting.Domain.Services;
 using Xunit;
 
 namespace SpaceOS.Modules.Cutting.Tests.Application.Strategies;
@@ -18,7 +19,7 @@ public class PriorityStrategyTests
     {
         var strategy = new PriorityStrategy();
         var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "priority");
-        var slots = plan.DailyPlans.ToList();
+        var slots = plan.DaySlots.ToList();
 
         var lowJob    = MakeJob("Low");
         var urgentJob = MakeJob("Urgent");
@@ -27,7 +28,6 @@ public class PriorityStrategyTests
         var scheduled = (await strategy.ScheduleJobsAsync(
             new[] { lowJob, urgentJob, normalJob }, slots, default)).ToList();
 
-        // Urgent = rank 1 → allocated first
         scheduled[0].Priority.Should().Be("Urgent");
         scheduled[1].Priority.Should().Be("Normal");
         scheduled[2].Priority.Should().Be("Low");
@@ -39,14 +39,12 @@ public class PriorityStrategyTests
         var strategy = new PriorityStrategy();
         var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "priority");
 
-        // Limit capacity: each slot 8h, urgent job 7h
         var urgentJob  = MakeJob("Urgent",  7m);
         var regularJob = MakeJob("Normal",  7m);
 
         var scheduled = (await strategy.ScheduleJobsAsync(
-            new[] { regularJob, urgentJob }, plan.DailyPlans, default)).ToList();
+            new[] { regularJob, urgentJob }, plan.DaySlots, default)).ToList();
 
-        // Both fit (different slots), but urgent should appear first
         scheduled.Should().HaveCount(2);
         scheduled[0].Priority.Should().Be("Urgent");
     }
@@ -56,13 +54,13 @@ public class PriorityStrategyTests
     {
         var strategy = new PriorityStrategy();
         var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "priority");
-        var slots = plan.DailyPlans.ToList();
+        var slots = plan.DaySlots.ToList();
 
         var jobs = slots.Select(_ => MakeJob("High", 6m)).ToList();
         var scheduled = (await strategy.ScheduleJobsAsync(jobs, slots, default)).ToList();
 
         foreach (var job in scheduled)
-            slots.First(d => d.Id == job.DailyPlanId).AddJob(job);
+            slots.First(d => d.Id == job.DaySlotId).AddJob(job, new AreaCapacityModel());
 
         var yield = strategy.CalculateYield(plan, slots);
         yield.Should().BeGreaterThan(0m, "scheduled jobs consume capacity");

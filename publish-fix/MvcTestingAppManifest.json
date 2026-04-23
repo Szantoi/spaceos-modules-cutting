@@ -1,0 +1,7 @@
+{
+  "SpaceOS.Modules.Cutting.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "~",
+  "SpaceOS.Modules.Cutting.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "~",
+  "SpaceOS.Modules.Cutting.Contracts, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "~",
+  "SpaceOS.Modules.Cutting.Domain, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "~",
+  "SpaceOS.Modules.Cutting.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "~"
+}

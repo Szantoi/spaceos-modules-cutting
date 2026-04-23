@@ -6,6 +6,7 @@ namespace SpaceOS.Modules.Cutting.Domain.Services;
 /// L1 Nesting: Greedy First Fit Decreasing Height (FFDH) strip packing.
 /// Offcuts have priority over full panels.
 /// </summary>
+[Obsolete("Use INestingStrategy via SpaceOS.Nesting.Algorithms NuGet. Will be removed in v1.4.0.")]
 public class NestingService
 {
     public IReadOnlyList<PanelAssignment> ComputeNesting(

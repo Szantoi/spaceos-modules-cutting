@@ -1,20 +1,25 @@
 namespace SpaceOS.Modules.Cutting.Domain.Aggregates;
 
-/// <summary>Child entity of DailyPlan representing a single order's cutting work scheduled on a day.</summary>
+/// <summary>Child entity of DaySlot representing a single order's cutting work scheduled on a day.</summary>
 public class CuttingJob
 {
     public Guid Id { get; private set; }
-    public Guid DailyPlanId { get; private set; }
+    public Guid DaySlotId { get; private set; }
     public Guid OrderId { get; private set; }
     public DateTime ScheduledDate { get; private set; }
     public string Priority { get; private set; } = "Normal";
     public decimal EstimatedTimeHours { get; private set; }
     public string Status { get; private set; } = "Pending";
+    /// <summary>Part width in mm. 0 when geometry is not yet available (Phase 3+).</summary>
+    public decimal WidthMm { get; private set; }
+    /// <summary>Part height in mm. 0 when geometry is not yet available (Phase 3+).</summary>
+    public decimal HeightMm { get; private set; }
 
     private CuttingJob() { }
 
     /// <summary>Creates a CuttingJob. Valid priorities: Urgent, High, Normal, Low.</summary>
-    public static CuttingJob Create(Guid dailyPlanId, Guid orderId, DateTime scheduledDate, string priority, decimal estimatedTimeHours)
+    public static CuttingJob Create(Guid daySlotId, Guid orderId, DateTime scheduledDate, string priority,
+        decimal estimatedTimeHours, decimal widthMm = 0m, decimal heightMm = 0m)
     {
         if (orderId == Guid.Empty) throw new ArgumentException("OrderId required.", nameof(orderId));
         if (estimatedTimeHours <= 0) throw new ArgumentException("EstimatedTimeHours must be > 0.", nameof(estimatedTimeHours));
@@ -24,11 +29,13 @@ public class CuttingJob
         return new CuttingJob
         {
             Id = Guid.NewGuid(),
-            DailyPlanId = dailyPlanId,
+            DaySlotId = daySlotId,
             OrderId = orderId,
             ScheduledDate = DateTime.SpecifyKind(scheduledDate.Date, DateTimeKind.Utc),
             Priority = priority,
             EstimatedTimeHours = estimatedTimeHours,
+            WidthMm = widthMm,
+            HeightMm = heightMm,
             Status = "Pending"
         };
     }
@@ -45,5 +52,17 @@ public class CuttingJob
             throw new InvalidOperationException($"CuttingJob {Id} cannot transition to 'Cut' from '{Status}'.");
 
         Status = "Cut";
+    }
+
+    /// <summary>Moves this job to a different DaySlot (rework/reschedule).</summary>
+    public void RescheduleTo(Guid newDaySlotId)
+    {
+        DaySlotId = newDaySlotId;
+    }
+
+    /// <summary>Marks this job as Warning — no available slot could be found during rework.</summary>
+    public void MarkAsWarning()
+    {
+        Status = "Warning";
     }
 }

@@ -17,8 +17,17 @@ public class CuttingDbContext : DbContext
 
     // CuttingPlan aggregate (planning)
     public DbSet<CuttingPlan> CuttingPlans => Set<CuttingPlan>();
-    public DbSet<DailyPlan> DailyPlans => Set<DailyPlan>();
+    public DbSet<DaySlot> DaySlots => Set<DaySlot>();
     public DbSet<CuttingJob> CuttingJobs => Set<CuttingJob>();
+
+    // PriorityProfile
+    public DbSet<PriorityProfile> PriorityProfiles => Set<PriorityProfile>();
+
+    // PanelReservation
+    public DbSet<PanelReservation> PanelReservations => Set<PanelReservation>();
+
+    // PlanNestingSnapshot
+    public DbSet<PlanNestingSnapshot> PlanNestingSnapshots => Set<PlanNestingSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,8 +38,11 @@ public class CuttingDbContext : DbContext
         modelBuilder.ApplyConfiguration(new CuttingBatchConfiguration());
         modelBuilder.ApplyConfiguration(new CuttingExecutionConfiguration());
         modelBuilder.ApplyConfiguration(new CuttingPlanConfiguration());
-        modelBuilder.ApplyConfiguration(new DailyPlanConfiguration());
+        modelBuilder.ApplyConfiguration(new DaySlotConfiguration());
         modelBuilder.ApplyConfiguration(new CuttingJobConfiguration());
+        modelBuilder.ApplyConfiguration(new PriorityProfileConfiguration());
+        modelBuilder.ApplyConfiguration(new PanelReservationConfiguration());
+        modelBuilder.ApplyConfiguration(new PlanNestingSnapshotConfiguration());
         base.OnModelCreating(modelBuilder);
     }
 }

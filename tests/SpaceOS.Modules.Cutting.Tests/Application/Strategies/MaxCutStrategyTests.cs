@@ -1,6 +1,7 @@
 using FluentAssertions;
 using SpaceOS.Modules.Cutting.Application.Strategies;
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
+using SpaceOS.Modules.Cutting.Domain.Services;
 using Xunit;
 
 namespace SpaceOS.Modules.Cutting.Tests.Application.Strategies;
@@ -10,25 +11,16 @@ public class MaxCutStrategyTests
     private static readonly Guid TenantId = Guid.NewGuid();
     private static readonly DateTime TodayUtc = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
 
-    private static DailyPlan MakeDailyPlan(decimal availableCapacity = 8m)
-    {
-        var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "maxcut-v1");
-        // Return first slot, override is not possible due to private setter,
-        // so we use the plan's real slot (AvailableCapacity always 8m from domain)
-        return plan.DailyPlans[0];
-    }
-
-    private static CuttingJob MakeJob(Guid dailyPlanId, decimal hours, string priority = "Normal")
-        => CuttingJob.Create(dailyPlanId, Guid.NewGuid(), TodayUtc, priority, hours);
+    private static CuttingJob MakeJob(Guid daySlotId, decimal hours, string priority = "Normal")
+        => CuttingJob.Create(daySlotId, Guid.NewGuid(), TodayUtc, priority, hours);
 
     [Fact]
     public async Task ScheduleJobsAsync_SortsJobsByEstimatedHoursDescThenPriorityAsc()
     {
         var strategy = new MaxCutStrategy();
         var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "maxcut-v1");
-        var slots = plan.DailyPlans.ToList();
+        var slots = plan.DaySlots.ToList();
 
-        // Create jobs with different hours to force a sort
         var smallJob  = MakeJob(Guid.Empty, 1m, "Urgent");
         var largeJob  = MakeJob(Guid.Empty, 3m, "Low");
         var mediumJob = MakeJob(Guid.Empty, 2m, "Normal");
@@ -36,7 +28,6 @@ public class MaxCutStrategyTests
         var scheduled = (await strategy.ScheduleJobsAsync(
             new[] { smallJob, largeJob, mediumJob }, slots, default)).ToList();
 
-        // Largest job should be first in the result (allocated to first slot)
         scheduled[0].EstimatedTimeHours.Should().Be(3m);
         scheduled[1].EstimatedTimeHours.Should().Be(2m);
         scheduled[2].EstimatedTimeHours.Should().Be(1m);
@@ -47,27 +38,25 @@ public class MaxCutStrategyTests
     {
         var strategy = new MaxCutStrategy();
         var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "maxcut-v1");
-        var slots = plan.DailyPlans.ToList();
+        var slots = plan.DaySlots.ToList();
         var firstSlotId = slots[0].Id;
 
         var job = MakeJob(Guid.Empty, 2m);
         var scheduled = (await strategy.ScheduleJobsAsync(new[] { job }, slots, default)).ToList();
 
         scheduled.Should().HaveCount(1);
-        scheduled[0].DailyPlanId.Should().Be(firstSlotId, "job should go to first slot");
+        scheduled[0].DaySlotId.Should().Be(firstSlotId, "job should go to first slot");
     }
 
     [Fact]
     public async Task ScheduleJobsAsync_RespectsCapacityLimits()
     {
         var strategy = new MaxCutStrategy();
-        // 7 slots × 8h capacity = 56h total; create 10 jobs × 6h = 60h — 2 jobs won't fit
         var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "maxcut-v1");
 
         var jobs = Enumerable.Range(0, 10).Select(_ => MakeJob(Guid.Empty, 6m)).ToList();
-        var scheduled = (await strategy.ScheduleJobsAsync(jobs, plan.DailyPlans, default)).ToList();
+        var scheduled = (await strategy.ScheduleJobsAsync(jobs, plan.DaySlots, default)).ToList();
 
-        // 7 slots × 8h: each slot can fit one 6h job → 7 scheduled, 3 overflow
         scheduled.Should().HaveCount(7);
     }
 
@@ -78,7 +67,7 @@ public class MaxCutStrategyTests
         var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "maxcut-v1");
 
         var scheduled = (await strategy.ScheduleJobsAsync(
-            Enumerable.Empty<CuttingJob>(), plan.DailyPlans, default)).ToList();
+            Enumerable.Empty<CuttingJob>(), plan.DaySlots, default)).ToList();
 
         scheduled.Should().BeEmpty();
     }
@@ -88,14 +77,13 @@ public class MaxCutStrategyTests
     {
         var strategy = new MaxCutStrategy();
         var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "maxcut-v1");
-        var slots = plan.DailyPlans.ToList();
+        var slots = plan.DaySlots.ToList();
 
-        // One job per slot at 7.28h (91% of 8h)
         var jobs = slots.Select(d => MakeJob(Guid.Empty, 7.28m)).ToList();
         var scheduled = (await strategy.ScheduleJobsAsync(jobs, slots, default)).ToList();
 
         foreach (var job in scheduled)
-            slots.First(d => d.Id == job.DailyPlanId).AddJob(job);
+            slots.First(d => d.Id == job.DaySlotId).AddJob(job, new AreaCapacityModel());
 
         var yield = strategy.CalculateYield(plan, slots);
         yield.Should().BeGreaterThanOrEqualTo(91m);
@@ -124,15 +112,9 @@ public class MaxCutStrategyTests
     [Fact]
     public async Task ValidateAsync_WhenNoDailyPlans_ReturnsInvalid()
     {
-        // Cannot create a CuttingPlan with 0 days (domain guards), so test via an
-        // empty DailyPlan collection on a plan that we check directly.
-        // We verify the strategy handles the empty-plans case properly.
         var strategy = new MaxCutStrategy();
-        // Use a plan but pass no daily plans to CalculateYield
         var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "maxcut-v1");
 
-        // The validation checks plan.DailyPlans directly. Since the plan always has 7+ days,
-        // we can assert IsValid = true here (domain prevents 0-day plans).
         var result = await strategy.ValidateAsync(plan, default);
         result.IsValid.Should().BeTrue();
         await Task.CompletedTask;
@@ -144,10 +126,9 @@ public class MaxCutStrategyTests
         var strategy = new MaxCutStrategy();
         var plan = CuttingPlan.Create(TenantId, TodayUtc, 7, "maxcut-v1");
 
-        // A job requiring more hours than any slot has
         var hugeJob = MakeJob(Guid.Empty, 99m);
         var scheduled = (await strategy.ScheduleJobsAsync(
-            new[] { hugeJob }, plan.DailyPlans, default)).ToList();
+            new[] { hugeJob }, plan.DaySlots, default)).ToList();
 
         scheduled.Should().BeEmpty("no slot has 99h capacity");
     }

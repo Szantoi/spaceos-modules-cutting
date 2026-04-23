@@ -5,11 +5,14 @@ using SpaceOS.Modules.Cutting.Application.Events;
 using SpaceOS.Modules.Cutting.Contracts.Providers;
 using SpaceOS.Modules.Cutting.Domain.Interfaces;
 using SpaceOS.Modules.Cutting.Domain.Services;
-using SpaceOS.Modules.Cutting.Infrastructure.Adapters;
+using SpaceOS.Nesting.Algorithms;
+using SpaceOS.Nesting.Algorithms.Strategies;
 using SpaceOS.Modules.Cutting.Infrastructure.Events;
 using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
 using SpaceOS.Modules.Cutting.Infrastructure.Repositories;
-using SpaceOS.Modules.Inventory.Contracts.Providers;
+using SpaceOS.Modules.Cutting.Infrastructure.Adapters;
+using SpaceOS.Modules.Cutting.Infrastructure.Workers;
+using OldInventoryProvider = SpaceOS.Modules.Inventory.Contracts.Providers.IInventoryProvider;
 
 namespace SpaceOS.Modules.Cutting.Infrastructure.Extensions;
 
@@ -31,11 +34,22 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddScoped<ICuttingRepository, CuttingRepository>();
+        services.AddScoped<IPriorityProfileRepository, PriorityProfileRepository>();
+        services.AddScoped<IPanelReservationRepository, PanelReservationRepository>();
+        services.AddScoped<IPlanNestingSnapshotRepository, PlanNestingSnapshotRepository>();
         services.AddScoped<ICuttingTenantAccessor, HttpContextCuttingTenantAccessor>();
         services.AddScoped<ICuttingProvider, CuttingProviderAdapter>();
-        services.AddSingleton<NestingService>();
+        services.AddSingleton<INestingStrategy, FfdhNestingStrategy>();
+        services.AddSingleton<NestingStrategyFactory>();
+        services.AddSingleton<ICapacityModel, AreaCapacityModel>();
+        services.AddSingleton<IReworkPolicy, WarnAndApplyPolicy>();
 
-        services.AddHttpClient<IInventoryProvider, InventoryProviderHttpAdapter>(client =>
+        services.AddHttpClient<OldInventoryProvider, InventoryProviderHttpAdapter>(client =>
+        {
+            client.BaseAddress = new Uri(configuration["InventoryService:BaseUrl"] ?? "http://127.0.0.1:5004");
+        });
+
+        services.AddHttpClient<SpaceOS.Modules.Contracts.Inventory.IInventoryProvider, ContractsInventoryHttpAdapter>(client =>
         {
             client.BaseAddress = new Uri(configuration["InventoryService:BaseUrl"] ?? "http://127.0.0.1:5004");
         });
@@ -44,6 +58,13 @@ public static class ServiceCollectionExtensions
         {
             client.BaseAddress = new Uri(configuration["InventoryService:BaseUrl"] ?? "http://127.0.0.1:5004");
         });
+
+        services.AddHttpClient<IInventoryCuttingAdapter, InventoryCuttingHttpAdapter>(client =>
+        {
+            client.BaseAddress = new Uri(configuration["InventoryService:BaseUrl"] ?? "http://127.0.0.1:5004");
+        });
+
+        services.AddHostedService<DaySlotAutoLockWorker>();
 
         return services;
     }

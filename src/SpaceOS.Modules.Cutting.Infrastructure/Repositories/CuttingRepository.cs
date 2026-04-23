@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
+using SpaceOS.Modules.Cutting.Domain.Entities;
 using SpaceOS.Modules.Cutting.Domain.Enums;
 using SpaceOS.Modules.Cutting.Domain.Interfaces;
 using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
@@ -65,7 +66,7 @@ public class CuttingRepository : ICuttingRepository
 
     public async Task<CuttingPlan?> GetCuttingPlanByIdAsync(Guid planId, CancellationToken ct = default)
         => await _db.CuttingPlans.AsNoTracking()
-            .Include(p => p.DailyPlans)
+            .Include(p => p.DaySlots)
                 .ThenInclude(d => d.Jobs)
             .FirstOrDefaultAsync(p => p.Id == planId, ct)
             .ConfigureAwait(false);
@@ -77,7 +78,7 @@ public class CuttingRepository : ICuttingRepository
 
     public async Task<IReadOnlyList<CuttingPlan>> GetAllCuttingPlansAsync(CancellationToken ct = default)
         => await _db.CuttingPlans.AsNoTracking()
-            .Include(p => p.DailyPlans)
+            .Include(p => p.DaySlots)
             .OrderByDescending(p => p.PlanDate)
             .ToListAsync(ct)
             .ConfigureAwait(false);
@@ -85,6 +86,12 @@ public class CuttingRepository : ICuttingRepository
     public async Task<CuttingJob?> GetCuttingJobTrackedAsync(Guid jobId, CancellationToken ct = default)
         => await _db.CuttingJobs
             .FirstOrDefaultAsync(j => j.Id == jobId, ct)
+            .ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<DaySlot>> GetOpenSlotsBeforeDateAsync(DateOnly date, CancellationToken ct = default)
+        => await _db.DaySlots
+            .Where(s => s.Status == DaySlotStatus.Open && s.SlotDate < date)
+            .ToListAsync(ct)
             .ConfigureAwait(false);
 
     public async Task SaveChangesAsync(CancellationToken ct = default)

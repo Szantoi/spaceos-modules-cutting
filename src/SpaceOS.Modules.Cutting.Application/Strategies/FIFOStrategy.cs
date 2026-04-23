@@ -1,4 +1,5 @@
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
+using SpaceOS.Modules.Cutting.Domain.Entities;
 
 namespace SpaceOS.Modules.Cutting.Application.Strategies;
 
@@ -13,24 +14,25 @@ public sealed class FIFOStrategy : IPlanningStrategy
     /// <inheritdoc/>
     public Task<IEnumerable<CuttingJob>> ScheduleJobsAsync(
         IEnumerable<CuttingJob> unscheduledJobs,
-        IEnumerable<DailyPlan> dailyPlans,
+        IEnumerable<DaySlot> daySlots,
         CancellationToken ct)
     {
-        // FIFO: sort by creation proxy (ScheduledDate asc — oldest first)
         var sorted = unscheduledJobs
             .OrderBy(j => j.ScheduledDate)
             .ToList();
 
-        var slots = dailyPlans.ToList();
+        var slots = daySlots.ToList();
         var allocated = new List<CuttingJob>();
-        var remainingCapacity = slots.ToDictionary(d => d.Id, d => d.AvailableCapacity - d.AllocatedCapacity);
+        var remainingCapacity = slots.ToDictionary(d => d.Id, d => d.CapacityHours - d.UsedCapacityHours);
 
         foreach (var job in sorted)
         {
             var slot = slots.FirstOrDefault(d => remainingCapacity.GetValueOrDefault(d.Id) >= job.EstimatedTimeHours);
             if (slot is null) continue;
 
-            var scheduled = CuttingJob.Create(slot.Id, job.OrderId, slot.Date, job.Priority, job.EstimatedTimeHours);
+            var scheduled = CuttingJob.Create(slot.Id, job.OrderId,
+                slot.SlotDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
+                job.Priority, job.EstimatedTimeHours);
             remainingCapacity[slot.Id] -= job.EstimatedTimeHours;
             allocated.Add(scheduled);
         }
@@ -39,13 +41,13 @@ public sealed class FIFOStrategy : IPlanningStrategy
     }
 
     /// <inheritdoc/>
-    public decimal CalculateYield(CuttingPlan plan, IEnumerable<DailyPlan> dailyPlans)
+    public decimal CalculateYield(CuttingPlan plan, IEnumerable<DaySlot> daySlots)
     {
-        var slots = dailyPlans.ToList();
-        var totalCapacity = slots.Sum(d => d.AvailableCapacity);
+        var slots = daySlots.ToList();
+        var totalCapacity = slots.Sum(d => d.CapacityHours);
         if (totalCapacity == 0m) return 0m;
 
-        var allocatedHours = slots.Sum(d => d.AllocatedCapacity);
+        var allocatedHours = slots.Sum(d => d.UsedCapacityHours);
         return Math.Round(allocatedHours / totalCapacity * 100m, 2);
     }
 
@@ -57,10 +59,10 @@ public sealed class FIFOStrategy : IPlanningStrategy
     {
         var errors = new List<string>();
 
-        if (!plan.DailyPlans.Any())
+        if (!plan.DaySlots.Any())
             errors.Add("Plan must have at least one daily slot.");
 
-        if (plan.DailyPlans.Any(d => d.AvailableCapacity <= 0m))
+        if (plan.DaySlots.Any(d => d.CapacityHours <= 0m))
             errors.Add("All daily slots must have positive available capacity.");
 
         var result = errors.Count == 0

@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
+using SpaceOS.Modules.Cutting.Domain.Enums;
 using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
 using SpaceOS.Modules.Cutting.Infrastructure.Repositories;
 using Xunit;
@@ -39,14 +40,14 @@ public class CuttingPlanRepositoryTests : IDisposable
     }
 
     [Fact]
-    public async Task AddCuttingPlan_ShouldPersistDailyPlans()
+    public async Task AddCuttingPlan_ShouldPersistDaySlots()
     {
         var plan = CreatePlan(planDays: 14);
         await _repo.AddCuttingPlanAsync(plan);
         await _repo.SaveChangesAsync();
 
         var found = await _repo.GetCuttingPlanByIdAsync(plan.Id);
-        found!.DailyPlans.Should().HaveCount(14);
+        found!.DaySlots.Should().HaveCount(14);
     }
 
     [Fact]
@@ -114,11 +115,13 @@ public class CuttingPlanRepositoryTests : IDisposable
 
         var tracked = await _repo.GetCuttingPlanTrackedAsync(plan.Id);
         tracked.Should().NotBeNull();
-        tracked!.UpdateStatus("Approved");
+#pragma warning disable CS0618
+        tracked!.UpdateStatus(CuttingPlanStatus.Published);
+#pragma warning restore CS0618
         await _repo.SaveChangesAsync();
 
         var reloaded = await _repo.GetCuttingPlanByIdAsync(plan.Id);
-        reloaded!.Status.Should().Be("Approved");
+        reloaded!.Status.Should().Be(CuttingPlanStatus.Published);
     }
 
     public void Dispose() => _db.Dispose();

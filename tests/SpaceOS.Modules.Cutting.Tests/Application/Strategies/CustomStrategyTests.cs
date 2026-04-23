@@ -1,6 +1,7 @@
 using FluentAssertions;
 using SpaceOS.Modules.Cutting.Application.Strategies;
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
+using SpaceOS.Modules.Cutting.Domain.Services;
 using Xunit;
 
 namespace SpaceOS.Modules.Cutting.Tests.Application.Strategies;
@@ -19,7 +20,7 @@ public class CustomStrategyTests
         var custom  = new CustomStrategy();
         var maxcut  = new MaxCutStrategy();
         var plan    = CuttingPlan.Create(TenantId, TodayUtc, 7, "custom");
-        var slots   = plan.DailyPlans.ToList();
+        var slots   = plan.DaySlots.ToList();
         var jobs    = slots.Select(_ => MakeJob(7.28m)).ToList();
 
         var customResult = (await custom.ScheduleJobsAsync(jobs, slots, default)).ToList();
@@ -53,12 +54,12 @@ public class CustomStrategyTests
         var custom = new CustomStrategy();
         var maxcut = new MaxCutStrategy();
         var plan   = CuttingPlan.Create(TenantId, TodayUtc, 7, "custom");
-        var slots  = plan.DailyPlans.ToList();
+        var slots  = plan.DaySlots.ToList();
 
         var jobs = slots.Select(_ => MakeJob(4m)).ToList();
         var scheduled = (await custom.ScheduleJobsAsync(jobs, slots, default)).ToList();
         foreach (var job in scheduled)
-            slots.First(d => d.Id == job.DailyPlanId).AddJob(job);
+            slots.First(d => d.Id == job.DaySlotId).AddJob(job, new AreaCapacityModel());
 
         var customYield = custom.CalculateYield(plan, slots);
         var maxcutYield = maxcut.CalculateYield(plan, slots);

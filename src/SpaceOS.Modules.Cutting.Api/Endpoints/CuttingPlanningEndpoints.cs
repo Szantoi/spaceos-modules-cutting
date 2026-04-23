@@ -2,10 +2,16 @@ using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using SpaceOS.Modules.Cutting.Application.Commands.CloseCuttingPlan;
+using SpaceOS.Modules.Cutting.Application.Commands.ReservePanels;
 using SpaceOS.Modules.Cutting.Application.Commands.CompleteJob;
 using SpaceOS.Modules.Cutting.Application.Commands.CreateCuttingPlan;
+using SpaceOS.Modules.Cutting.Application.Commands.CreatePriorityProfile;
+using SpaceOS.Modules.Cutting.Application.Commands.FreezeCuttingPlan;
+using SpaceOS.Modules.Cutting.Application.Commands.PublishCuttingPlan;
 using SpaceOS.Modules.Cutting.Application.Commands.UpdateCuttingPlanStatus;
 using SpaceOS.Modules.Cutting.Application.Queries.GetCuttingPlan;
+using SpaceOS.Modules.Cutting.Application.Queries.GetPriorityProfiles;
 using SpaceOS.Modules.Cutting.Domain.Interfaces;
 
 namespace SpaceOS.Modules.Cutting.Api.Endpoints;
@@ -23,6 +29,15 @@ public static class CuttingPlanningEndpoints
         group.MapPut("/{planId:guid}", UpdateCuttingPlan);
         group.MapGet("/{planId:guid}/daily/{date}", GetDailyPlan);
         group.MapPut("/jobs/{jobId:guid}/complete", CompleteJob);
+        group.MapPost("/{planId:guid}/publish", PublishCuttingPlan);
+        group.MapPost("/{planId:guid}/freeze", FreezeCuttingPlan);
+        group.MapPost("/{planId:guid}/close", CloseCuttingPlan);
+        group.MapPost("/{planId:guid}/reserve-panels", ReservePanels);
+
+        var profileGroup = app.MapGroup("/api/cutting/priority-profiles")
+            .RequireAuthorization("ManufacturerOnly");
+        profileGroup.MapGet("/", GetPriorityProfiles);
+        profileGroup.MapPost("/", CreatePriorityProfile);
 
         return app;
     }
@@ -65,7 +80,7 @@ public static class CuttingPlanningEndpoints
             p.Id,
             p.PlanDate.ToString("yyyy-MM-dd"),
             p.PlanDays,
-            p.Status,
+            p.Status.ToString(),
             p.StrategyId));
         return Results.Ok(result);
     }
@@ -155,6 +170,111 @@ public static class CuttingPlanningEndpoints
         return Results.Ok(new { jobId, status = "Cut" });
     }
 
+    private static async Task<IResult> ReservePanels(
+        Guid planId,
+        IMediator mediator,
+        HttpContext httpContext,
+        CancellationToken ct)
+    {
+        var tenantId = GetTenantId(httpContext);
+        if (tenantId == Guid.Empty) return Results.Unauthorized();
+
+        var result = await mediator.Send(new ReservePanelsCommand(planId, tenantId), ct).ConfigureAwait(false);
+        if (!result.IsSuccess)
+        {
+            if (result.Status == Ardalis.Result.ResultStatus.NotFound) return Results.NotFound(result.Errors);
+            return Results.BadRequest(result.Errors);
+        }
+        return Results.Ok(new { planId, reservedCount = result.Value });
+    }
+
+    private static async Task<IResult> PublishCuttingPlan(
+        Guid planId,
+        PublishCuttingPlanRequest request,
+        IMediator mediator,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new PublishCuttingPlanCommand(planId, request.ProfileSnapshotId), ct).ConfigureAwait(false);
+        if (!result.IsSuccess)
+        {
+            if (result.Status == Ardalis.Result.ResultStatus.NotFound) return Results.NotFound(result.Errors);
+            if (result.Status == Ardalis.Result.ResultStatus.Invalid) return Results.BadRequest(result.ValidationErrors);
+            return Results.BadRequest(result.Errors);
+        }
+        return Results.Ok(new { planId, status = "Published" });
+    }
+
+    private static async Task<IResult> FreezeCuttingPlan(
+        Guid planId,
+        IMediator mediator,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new FreezeCuttingPlanCommand(planId), ct).ConfigureAwait(false);
+        if (!result.IsSuccess)
+        {
+            if (result.Status == Ardalis.Result.ResultStatus.NotFound) return Results.NotFound(result.Errors);
+            if (result.Status == Ardalis.Result.ResultStatus.Invalid) return Results.BadRequest(result.ValidationErrors);
+            return Results.BadRequest(result.Errors);
+        }
+        return Results.Ok(new { planId, status = "Frozen" });
+    }
+
+    private static async Task<IResult> CloseCuttingPlan(
+        Guid planId,
+        IMediator mediator,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new CloseCuttingPlanCommand(planId), ct).ConfigureAwait(false);
+        if (!result.IsSuccess)
+        {
+            if (result.Status == Ardalis.Result.ResultStatus.NotFound) return Results.NotFound(result.Errors);
+            if (result.Status == Ardalis.Result.ResultStatus.Invalid) return Results.BadRequest(result.ValidationErrors);
+            return Results.BadRequest(result.Errors);
+        }
+        return Results.Ok(new { planId, status = "Closed" });
+    }
+
+    private static async Task<IResult> GetPriorityProfiles(
+        IMediator mediator,
+        HttpContext httpContext,
+        CancellationToken ct)
+    {
+        var tenantId = GetTenantId(httpContext);
+        if (tenantId == Guid.Empty) return Results.Unauthorized();
+
+        var result = await mediator.Send(new GetPriorityProfilesQuery(tenantId), ct).ConfigureAwait(false);
+        return Results.Ok(result.Value);
+    }
+
+    private static async Task<IResult> CreatePriorityProfile(
+        CreatePriorityProfileRequest request,
+        IMediator mediator,
+        HttpContext httpContext,
+        CancellationToken ct)
+    {
+        var tenantId = GetTenantId(httpContext);
+        if (tenantId == Guid.Empty) return Results.Unauthorized();
+
+        var command = new CreatePriorityProfileCommand(
+            tenantId,
+            request.Name,
+            request.CapacityModelId,
+            request.ReworkPolicyId,
+            request.PlanningStrategyId,
+            request.IsDefault);
+
+        var result = await mediator.Send(command, ct).ConfigureAwait(false);
+
+        if (!result.IsSuccess)
+        {
+            if (result.Status == Ardalis.Result.ResultStatus.Invalid)
+                return Results.BadRequest(result.ValidationErrors);
+            return Results.BadRequest(result.Errors);
+        }
+
+        return Results.Created($"/api/cutting/priority-profiles/{result.Value}", new { id = result.Value });
+    }
+
     private static Guid GetTenantId(HttpContext ctx)
     {
         var claim = ctx.User?.FindFirst("tid")?.Value;
@@ -165,3 +285,10 @@ public static class CuttingPlanningEndpoints
 public sealed record CreateCuttingPlanRequest(string PlanDate, int? PlanDays, string? StrategyId);
 public sealed record UpdateCuttingPlanRequest(string? Status);
 public sealed record CompleteJobRequest(Guid? CuttingSheetId, decimal YieldPct, decimal WasteM2);
+public sealed record CreatePriorityProfileRequest(
+    string Name,
+    string CapacityModelId,
+    string ReworkPolicyId,
+    string PlanningStrategyId,
+    bool IsDefault = false);
+public sealed record PublishCuttingPlanRequest(Guid ProfileSnapshotId);

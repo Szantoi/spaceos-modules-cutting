@@ -5,8 +5,9 @@ using SpaceOS.Modules.Cutting.Application.Queries.GetNestingResult;
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
 using SpaceOS.Modules.Cutting.Domain.Entities;
 using SpaceOS.Modules.Cutting.Domain.Interfaces;
-using SpaceOS.Modules.Cutting.Domain.Services;
 using SpaceOS.Modules.Inventory.Contracts.Dtos;
+using SpaceOS.Nesting.Algorithms;
+using SpaceOS.Nesting.Algorithms.Strategies;
 using SpaceOS.Modules.Inventory.Contracts.Providers;
 using Xunit;
 
@@ -16,10 +17,11 @@ public class GetNestingResultHandlerTests
 {
     private readonly Mock<ICuttingRepository> _repoMock = new();
     private readonly Mock<IInventoryProvider> _inventoryMock = new();
-    private readonly NestingService _nestingService = new();
+    private readonly Mock<IPlanNestingSnapshotRepository> _snapshotRepoMock = new();
+    private readonly INestingStrategy _nestingStrategy = new FfdhNestingStrategy();
 
     private GetNestingResultQueryHandler CreateHandler() =>
-        new(_repoMock.Object, _inventoryMock.Object, _nestingService);
+        new(_repoMock.Object, _inventoryMock.Object, _nestingStrategy, _snapshotRepoMock.Object);
 
     private static CuttingSheet CreateSheet()
     {
@@ -102,5 +104,30 @@ public class GetNestingResultHandlerTests
 
         result.IsSuccess.Should().BeFalse();
         result.Status.Should().Be(ResultStatus.NotFound);
+    }
+
+    [Fact]
+    public async Task Handle_WithPlanId_SavesSnapshot_IfNotExists()
+    {
+        var sheet = CreateSheet();
+        var planId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+
+        _repoMock.Setup(r => r.GetCuttingSheetByIdAsync(sheet.Id, default)).ReturnsAsync(sheet);
+        _inventoryMock.Setup(i => i.GetStockAsync("MDF 18mm", default))
+            .ReturnsAsync(new PanelStockDto("MDF 18mm", 2, 2800, 2070, new List<OffcutDto>()));
+        _inventoryMock.Setup(i => i.GetOffcutsAsync("MDF 18mm", default))
+            .ReturnsAsync(new List<OffcutDto>());
+
+        // No existing snapshot
+        _snapshotRepoMock.Setup(r => r.GetByPlanAsync(planId, default))
+            .ReturnsAsync((PlanNestingSnapshot?)null);
+
+        var handler = CreateHandler();
+        var result = await handler.Handle(new GetNestingResultQuery(sheet.Id, planId, tenantId), default);
+
+        result.IsSuccess.Should().BeTrue();
+        _snapshotRepoMock.Verify(r => r.AddAsync(It.IsAny<PlanNestingSnapshot>(), default), Times.Once);
+        _snapshotRepoMock.Verify(r => r.SaveChangesAsync(default), Times.Once);
     }
 }

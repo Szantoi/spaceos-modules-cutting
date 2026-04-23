@@ -1,4 +1,5 @@
 using FluentAssertions;
+#pragma warning disable CS0618 // NestingService is obsolete — these tests verify legacy behaviour
 using SpaceOS.Modules.Cutting.Domain.Services;
 using Xunit;
 

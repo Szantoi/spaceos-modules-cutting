@@ -12,13 +12,16 @@ public sealed class CreateCuttingPlanCommandHandler
 {
     private readonly ICuttingRepository _repository;
     private readonly IPlanningStrategyFactory _strategyFactory;
+    private readonly ICapacityModel _capacityModel;
 
     public CreateCuttingPlanCommandHandler(
         ICuttingRepository repository,
-        IPlanningStrategyFactory strategyFactory)
+        IPlanningStrategyFactory strategyFactory,
+        ICapacityModel capacityModel)
     {
         _repository = repository;
         _strategyFactory = strategyFactory;
+        _capacityModel = capacityModel;
     }
 
     public async Task<Result<CreateCuttingPlanResponse>> Handle(
@@ -36,7 +39,7 @@ public sealed class CreateCuttingPlanCommandHandler
             return Result<CreateCuttingPlanResponse>.Invalid(new ValidationError(ex.Message));
         }
 
-        // 2. Create domain aggregate (generates DailyPlans internally)
+        // 2. Create domain aggregate (generates DaySlots internally)
         CuttingPlan plan;
         try
         {
@@ -54,35 +57,36 @@ public sealed class CreateCuttingPlanCommandHandler
                 validation.Errors.Select(e => new ValidationError(e)).ToArray());
 
         // 4. Generate v1 seed jobs — one job per day at 91% of 8h capacity
-        //    (real jobs come from order aggregates in v1.5+)
         var seedJobs = CreateSeedJobs(plan);
 
         // 5. Schedule jobs via strategy
         var scheduledJobs = (await strategy
-            .ScheduleJobsAsync(seedJobs, plan.DailyPlans, ct)
+            .ScheduleJobsAsync(seedJobs, plan.DaySlots, ct)
             .ConfigureAwait(false))
             .ToList();
 
-        // 6. Attach scheduled jobs to their daily plan slots so CalculateYield reflects allocation
+        // 6. Attach scheduled jobs to their day slots so CalculateYield reflects allocation
         foreach (var job in scheduledJobs)
         {
-            var slot = plan.DailyPlans.First(d => d.Id == job.DailyPlanId);
-            slot.AddJob(job);
+            var slot = plan.DaySlots.First(d => d.Id == job.DaySlotId);
+            var addResult = slot.AddJob(job, _capacityModel);
+            if (!addResult.IsSuccess)
+                return Result<CreateCuttingPlanResponse>.Error("Failed to add job to slot.");
         }
 
-        // 7. Compute yield (now that DailyPlan.AllocatedCapacity is populated)
-        var yield = strategy.CalculateYield(plan, plan.DailyPlans);
+        // 7. Compute yield (now that DaySlot.UsedCapacityHours is populated)
+        var yield = strategy.CalculateYield(plan, plan.DaySlots);
 
         // 8. Persist
         await _repository.AddCuttingPlanAsync(plan, ct).ConfigureAwait(false);
         await _repository.SaveChangesAsync(ct).ConfigureAwait(false);
 
         // 9. Build response
-        var dailyPlanResponses = plan.DailyPlans.Select(d => new DailyPlanResponse(
+        var dailyPlanResponses = plan.DaySlots.Select(d => new DailyPlanResponse(
             d.Id,
-            d.Date.ToString("yyyy-MM-dd"),
-            d.AvailableCapacity,
-            d.AllocatedCapacity,
+            d.SlotDate.ToString("yyyy-MM-dd"),
+            d.CapacityHours,
+            d.UsedCapacityHours,
             d.UtilizationPercent,
             d.Jobs.Select(j => new CuttingJobResponse(
                 j.Id,
@@ -113,12 +117,12 @@ public sealed class CreateCuttingPlanCommandHandler
     {
         const decimal SeedHours = 7.28m; // 91% of 8h → target yield ≥ 91%
 
-        // DailyPlanId is Guid.Empty for unscheduled seeds — the strategy assigns real slot IDs.
-        return plan.DailyPlans
+        // DaySlotId is Guid.Empty for unscheduled seeds — the strategy assigns real slot IDs.
+        return plan.DaySlots
             .Select(d => CuttingJob.Create(
-                dailyPlanId: Guid.Empty,
+                daySlotId: Guid.Empty,
                 orderId: Guid.NewGuid(),
-                scheduledDate: d.Date,
+                scheduledDate: d.SlotDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
                 priority: "Normal",
                 estimatedTimeHours: SeedHours))
             .ToList();

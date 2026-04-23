@@ -10,13 +10,15 @@ public class CuttingJobConfiguration : IEntityTypeConfiguration<CuttingJob>
     {
         builder.ToTable("CuttingJobs");
         builder.HasKey(x => x.Id);
-        builder.Property(x => x.DailyPlanId).IsRequired();
+        builder.Property(x => x.DaySlotId).IsRequired();
         builder.Property(x => x.OrderId).IsRequired();
         builder.Property(x => x.ScheduledDate).IsRequired();
         builder.Property(x => x.Priority).IsRequired().HasMaxLength(20);
         builder.Property(x => x.EstimatedTimeHours).HasPrecision(8, 2).IsRequired();
         builder.Property(x => x.Status).IsRequired().HasMaxLength(30);
-        builder.HasIndex(x => x.DailyPlanId);
+        builder.Property(x => x.WidthMm).HasPrecision(10, 2).IsRequired();
+        builder.Property(x => x.HeightMm).HasPrecision(10, 2).IsRequired();
+        builder.HasIndex(x => x.DaySlotId);
         builder.HasIndex(x => x.OrderId);
     }
 }

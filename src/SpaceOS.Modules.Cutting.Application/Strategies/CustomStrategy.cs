@@ -1,4 +1,5 @@
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
+using SpaceOS.Modules.Cutting.Domain.Entities;
 
 namespace SpaceOS.Modules.Cutting.Application.Strategies;
 
@@ -13,13 +14,13 @@ public sealed class CustomStrategy : IPlanningStrategy
     /// <inheritdoc/>
     public Task<IEnumerable<CuttingJob>> ScheduleJobsAsync(
         IEnumerable<CuttingJob> unscheduledJobs,
-        IEnumerable<DailyPlan> dailyPlans,
+        IEnumerable<DaySlot> daySlots,
         CancellationToken ct)
-        => _fallback.ScheduleJobsAsync(unscheduledJobs, dailyPlans, ct);
+        => _fallback.ScheduleJobsAsync(unscheduledJobs, daySlots, ct);
 
     /// <inheritdoc/>
-    public decimal CalculateYield(CuttingPlan plan, IEnumerable<DailyPlan> dailyPlans)
-        => _fallback.CalculateYield(plan, dailyPlans);
+    public decimal CalculateYield(CuttingPlan plan, IEnumerable<DaySlot> daySlots)
+        => _fallback.CalculateYield(plan, daySlots);
 
     /// <inheritdoc/>
     public string GetLabel() => "Custom (Tenant-Specific)";

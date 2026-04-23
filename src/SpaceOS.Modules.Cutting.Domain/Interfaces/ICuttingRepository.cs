@@ -1,4 +1,5 @@
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
+using SpaceOS.Modules.Cutting.Domain.Entities;
 
 namespace SpaceOS.Modules.Cutting.Domain.Interfaces;
 
@@ -25,6 +26,9 @@ public interface ICuttingRepository
     Task<CuttingPlan?> GetCuttingPlanTrackedAsync(Guid planId, CancellationToken ct = default);
     Task<IReadOnlyList<CuttingPlan>> GetAllCuttingPlansAsync(CancellationToken ct = default);
     Task<CuttingJob?> GetCuttingJobTrackedAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>Returns all Open DaySlots whose SlotDate is before <paramref name="date"/>.</summary>
+    Task<IReadOnlyList<DaySlot>> GetOpenSlotsBeforeDateAsync(DateOnly date, CancellationToken ct = default);
 
     Task SaveChangesAsync(CancellationToken ct = default);
 
