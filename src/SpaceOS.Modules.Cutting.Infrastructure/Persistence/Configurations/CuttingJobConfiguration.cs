@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
+using SpaceOS.Modules.Cutting.Domain.Enums;
 
 namespace SpaceOS.Modules.Cutting.Infrastructure.Persistence.Configurations;
 
@@ -18,6 +19,8 @@ public class CuttingJobConfiguration : IEntityTypeConfiguration<CuttingJob>
         builder.Property(x => x.Status).IsRequired().HasMaxLength(30);
         builder.Property(x => x.WidthMm).HasPrecision(10, 2).IsRequired();
         builder.Property(x => x.HeightMm).HasPrecision(10, 2).IsRequired();
+        builder.Property(x => x.Material).HasMaxLength(100).HasDefaultValue("");
+        builder.Property(x => x.GrainDirection).HasDefaultValue(GrainDirection.None);
         builder.HasIndex(x => x.DaySlotId);
         builder.HasIndex(x => x.OrderId);
     }

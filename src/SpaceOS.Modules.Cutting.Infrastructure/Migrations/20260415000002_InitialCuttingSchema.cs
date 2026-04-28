@@ -118,17 +118,17 @@ public partial class InitialCuttingSchema : Migration
 ALTER TABLE spaceos_cutting.""CuttingSheets"" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE spaceos_cutting.""CuttingSheets"" FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON spaceos_cutting.""CuttingSheets""
-    USING (""TenantId"" = current_setting('app.current_tenant_id')::uuid);
+    USING (""TenantId"" = COALESCE(NULLIF(current_setting('app.current_tenant_id', TRUE), ''), '00000000-0000-0000-0000-000000000000')::uuid);
 
 ALTER TABLE spaceos_cutting.""DailyCuttingPlans"" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE spaceos_cutting.""DailyCuttingPlans"" FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON spaceos_cutting.""DailyCuttingPlans""
-    USING (""TenantId"" = current_setting('app.current_tenant_id')::uuid);
+    USING (""TenantId"" = COALESCE(NULLIF(current_setting('app.current_tenant_id', TRUE), ''), '00000000-0000-0000-0000-000000000000')::uuid);
 
 ALTER TABLE spaceos_cutting.""CuttingExecutions"" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE spaceos_cutting.""CuttingExecutions"" FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON spaceos_cutting.""CuttingExecutions""
-    USING (""TenantId"" = current_setting('app.current_tenant_id')::uuid);
+    USING (""TenantId"" = COALESCE(NULLIF(current_setting('app.current_tenant_id', TRUE), ''), '00000000-0000-0000-0000-000000000000')::uuid);
 ");
     }
 

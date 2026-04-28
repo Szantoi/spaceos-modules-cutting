@@ -23,6 +23,8 @@
     <ProjectReference Include="../SpaceOS.Modules.Cutting.Application/SpaceOS.Modules.Cutting.Application.csproj" />
     <ProjectReference Include="../SpaceOS.Modules.Cutting.Contracts/SpaceOS.Modules.Cutting.Contracts.csproj" />
     <ProjectReference Include="../../../spaceos-nesting-algorithms/SpaceOS.Nesting.Algorithms/SpaceOS.Nesting.Algorithms.csproj" />
+    <ProjectReference Include="../SpaceOS.Modules.Cutting.Execution.Domain/SpaceOS.Modules.Cutting.Execution.Domain.csproj" />
+    <ProjectReference Include="../SpaceOS.Modules.Cutting.Execution.Application/SpaceOS.Modules.Cutting.Execution.Application.csproj" />
     <PackageReference Include="SpaceOS.Modules.Inventory.Contracts" Version="1.1.0" />
   </ItemGroup>
 </Project>

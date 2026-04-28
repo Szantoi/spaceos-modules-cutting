@@ -1,5 +1,6 @@
 using System.Net;
 using FluentAssertions;
+using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -29,6 +30,7 @@ public class InternalEndpointsTests : IDisposable
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
         builder.Services.AddSingleton(_repoMock.Object);
+        builder.Services.AddSingleton(new Mock<IMediator>().Object);
         builder.Services.AddDbContext<CuttingDbContext>(opts =>
             opts.UseInMemoryDatabase("test-cutting-internal"));
         builder.Services.AddLogging();
@@ -112,6 +114,20 @@ public class InternalEndpointsTests : IDisposable
         request.Headers.Add("X-SpaceOS-Internal", "true");
 
         var response = await _client.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    // ── IngestOrder endpoint ────────────────────────────────────────────────
+
+    [Fact]
+    public async Task IngestOrder_MissingInternalHeader_Returns403()
+    {
+        var body = new StringContent(
+            """{"orderId":"00000000-0000-0000-0000-000000000001","tenantId":"00000000-0000-0000-0000-000000000002","items":[]}""",
+            System.Text.Encoding.UTF8, "application/json");
+
+        var response = await _client.PostAsync("/internal/ingest-order", body);
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }

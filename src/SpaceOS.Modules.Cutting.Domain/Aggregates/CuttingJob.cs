@@ -1,3 +1,5 @@
+using SpaceOS.Modules.Cutting.Domain.Enums;
+
 namespace SpaceOS.Modules.Cutting.Domain.Aggregates;
 
 /// <summary>Child entity of DaySlot representing a single order's cutting work scheduled on a day.</summary>
@@ -14,12 +16,17 @@ public class CuttingJob
     public decimal WidthMm { get; private set; }
     /// <summary>Part height in mm. 0 when geometry is not yet available (Phase 3+).</summary>
     public decimal HeightMm { get; private set; }
+    /// <summary>Material code (e.g. "MDF 18mm"). Empty for legacy jobs.</summary>
+    public string Material { get; private set; } = string.Empty;
+    /// <summary>Grain direction constraint for the part.</summary>
+    public GrainDirection GrainDirection { get; private set; } = GrainDirection.None;
 
     private CuttingJob() { }
 
     /// <summary>Creates a CuttingJob. Valid priorities: Urgent, High, Normal, Low.</summary>
     public static CuttingJob Create(Guid daySlotId, Guid orderId, DateTime scheduledDate, string priority,
-        decimal estimatedTimeHours, decimal widthMm = 0m, decimal heightMm = 0m)
+        decimal estimatedTimeHours, decimal widthMm = 0m, decimal heightMm = 0m,
+        string material = "", GrainDirection grainDirection = GrainDirection.None)
     {
         if (orderId == Guid.Empty) throw new ArgumentException("OrderId required.", nameof(orderId));
         if (estimatedTimeHours <= 0) throw new ArgumentException("EstimatedTimeHours must be > 0.", nameof(estimatedTimeHours));
@@ -36,6 +43,8 @@ public class CuttingJob
             EstimatedTimeHours = estimatedTimeHours,
             WidthMm = widthMm,
             HeightMm = heightMm,
+            Material = material ?? string.Empty,
+            GrainDirection = grainDirection,
             Status = "Pending"
         };
     }

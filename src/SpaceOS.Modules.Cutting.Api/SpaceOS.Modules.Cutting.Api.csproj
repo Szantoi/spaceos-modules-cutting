@@ -16,5 +16,8 @@
   <ItemGroup>
     <ProjectReference Include="../SpaceOS.Modules.Cutting.Application/SpaceOS.Modules.Cutting.Application.csproj" />
     <ProjectReference Include="../SpaceOS.Modules.Cutting.Infrastructure/SpaceOS.Modules.Cutting.Infrastructure.csproj" />
+    <ProjectReference Include="../SpaceOS.Modules.Cutting.Execution.Infrastructure/SpaceOS.Modules.Cutting.Execution.Infrastructure.csproj" />
+    <ProjectReference Include="../SpaceOS.Modules.Cutting.Analytics.Application/SpaceOS.Modules.Cutting.Analytics.Application.csproj" />
+    <ProjectReference Include="../SpaceOS.Modules.Cutting.Analytics.Infrastructure/SpaceOS.Modules.Cutting.Analytics.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

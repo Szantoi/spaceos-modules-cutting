@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Phase 3 stub — tests intentionally cover the legacy CuttingExecution
 using FluentAssertions;
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
 using SpaceOS.Modules.Cutting.Domain.Enums;

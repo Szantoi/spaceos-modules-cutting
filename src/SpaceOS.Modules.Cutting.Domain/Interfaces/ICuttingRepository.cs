@@ -15,11 +15,6 @@ public interface ICuttingRepository
     Task<DailyCuttingPlan?> GetDailyCuttingPlanByDateAsync(DateTime planDate, CancellationToken ct = default);
     Task<IReadOnlyList<DailyCuttingPlan>> GetAllDailyCuttingPlansAsync(CancellationToken ct = default);
 
-    // CuttingExecution
-    Task AddCuttingExecutionAsync(CuttingExecution execution, CancellationToken ct = default);
-    Task<CuttingExecution?> GetExecutionBySheetIdAsync(Guid sheetId, CancellationToken ct = default);
-    Task<IReadOnlyList<CuttingExecution>> GetCompletedExecutionsInRangeAsync(DateTime from, DateTime to, CancellationToken ct = default);
-
     // CuttingPlan (planning aggregate)
     Task AddCuttingPlanAsync(CuttingPlan plan, CancellationToken ct = default);
     Task<CuttingPlan?> GetCuttingPlanByIdAsync(Guid planId, CancellationToken ct = default);
@@ -29,6 +24,12 @@ public interface ICuttingRepository
 
     /// <summary>Returns all Open DaySlots whose SlotDate is before <paramref name="date"/>.</summary>
     Task<IReadOnlyList<DaySlot>> GetOpenSlotsBeforeDateAsync(DateOnly date, CancellationToken ct = default);
+
+    /// <summary>Returns all Open DaySlots ordered by SlotDate ascending (for job scheduling).</summary>
+    Task<IReadOnlyList<DaySlot>> GetOpenSlotsOrderedByDateAsync(CancellationToken ct = default);
+
+    /// <summary>Checks if any CuttingJobs already exist for the given OrderId.</summary>
+    Task<bool> HasJobsForOrderAsync(Guid orderId, CancellationToken ct = default);
 
     Task SaveChangesAsync(CancellationToken ct = default);
 

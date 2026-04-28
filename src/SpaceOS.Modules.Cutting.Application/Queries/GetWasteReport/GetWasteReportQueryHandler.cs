@@ -4,8 +4,13 @@ using SpaceOS.Modules.Cutting.Domain.Interfaces;
 
 namespace SpaceOS.Modules.Cutting.Application.Queries.GetWasteReport;
 
+/// <summary>
+/// Returns a waste report. Phase 3 implementation — execution-level waste data is available
+/// in Phase 4 via the CuttingExecution aggregate. This handler returns an empty stub.
+/// </summary>
 public sealed class GetWasteReportQueryHandler : IRequestHandler<GetWasteReportQuery, Result<WasteReportResponse>>
 {
+    // Repository kept for future Phase 4 integration
     private readonly ICuttingRepository _repository;
 
     public GetWasteReportQueryHandler(ICuttingRepository repository)
@@ -13,12 +18,10 @@ public sealed class GetWasteReportQueryHandler : IRequestHandler<GetWasteReportQ
         _repository = repository;
     }
 
-    public async Task<Result<WasteReportResponse>> Handle(GetWasteReportQuery request, CancellationToken ct)
+    public Task<Result<WasteReportResponse>> Handle(GetWasteReportQuery request, CancellationToken ct)
     {
-        var executions = await _repository.GetCompletedExecutionsInRangeAsync(request.From, request.To, ct).ConfigureAwait(false);
-        var totalWaste = executions.Sum(e => e.WasteAreaCm2);
-        var avg = executions.Count > 0 ? totalWaste / executions.Count : 0m;
-
-        return Result<WasteReportResponse>.Success(new WasteReportResponse(totalWaste, avg, executions.Count));
+        // Phase 3 stub — execution waste data is tracked in Phase 4 via CuttingExecution aggregate.
+        // Returns an empty report until Phase 4 waste query is wired.
+        return Task.FromResult(Result<WasteReportResponse>.Success(new WasteReportResponse(0m, 0m, 0)));
     }
 }

@@ -1,8 +1,11 @@
+using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using SpaceOS.Modules.Cutting.Application.Commands.IngestOrder;
+using SpaceOS.Modules.Cutting.Domain.Enums;
 using SpaceOS.Modules.Cutting.Domain.Interfaces;
 using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
 
@@ -16,6 +19,9 @@ public static class InternalEndpoints
     public static IEndpointRouteBuilder MapInternalEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapDelete("/internal/cutting-sheets/by-tenant/{tenantId}", DeleteByTenant)
+            .AllowAnonymous();
+
+        app.MapPost("/internal/ingest-order", IngestOrder)
             .AllowAnonymous();
 
         return app;
@@ -86,4 +92,53 @@ public static class InternalEndpoints
             deletedCounts = new { cuttingSheets = counts.sheets, dailyCuttingPlans = counts.plans }
         });
     }
+
+    private static async Task<IResult> IngestOrder(
+        IngestOrderDto dto,
+        HttpRequest request,
+        IMediator mediator,
+        CancellationToken ct)
+    {
+        // X-SpaceOS-Internal header required
+        if (!request.Headers.TryGetValue(InternalHeader, out var headerVal) ||
+            headerVal != "true")
+            return Results.StatusCode(403);
+
+        if (dto.Items is null || dto.Items.Count == 0)
+            return Results.BadRequest(new { error = "Items list must not be empty." });
+
+        var items = dto.Items.Select(i => new IngestOrderItem(
+            i.Name ?? string.Empty,
+            i.WidthMm,
+            i.HeightMm,
+            i.Material ?? string.Empty,
+            Enum.TryParse<GrainDirection>(i.GrainDirection, true, out var gd) ? gd : GrainDirection.None,
+            i.Quantity > 0 ? i.Quantity : 1
+        )).ToList();
+
+        var command = new IngestOrderCommand(dto.OrderId, dto.TenantId, items);
+        var result = await mediator.Send(command, ct).ConfigureAwait(false);
+
+        if (!result.IsSuccess)
+        {
+            if (result.Status == Ardalis.Result.ResultStatus.Invalid)
+                return Results.BadRequest(result.ValidationErrors);
+            return Results.BadRequest(result.Errors);
+        }
+
+        return Results.Ok(new { orderId = dto.OrderId, jobsCreated = result.Value });
+    }
 }
+
+public sealed record IngestOrderDto(
+    Guid OrderId,
+    Guid TenantId,
+    List<IngestOrderItemDto>? Items);
+
+public sealed record IngestOrderItemDto(
+    string? Name,
+    decimal WidthMm,
+    decimal HeightMm,
+    string? Material,
+    string? GrainDirection,
+    int Quantity);

@@ -13,11 +13,18 @@
     <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.11" />
+    <PackageReference Include="Ardalis.Specification" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/SpaceOS.Modules.Cutting.Domain/SpaceOS.Modules.Cutting.Domain.csproj" />
     <ProjectReference Include="../../src/SpaceOS.Modules.Cutting.Application/SpaceOS.Modules.Cutting.Application.csproj" />
     <ProjectReference Include="../../src/SpaceOS.Modules.Cutting.Infrastructure/SpaceOS.Modules.Cutting.Infrastructure.csproj" />
     <ProjectReference Include="../../src/SpaceOS.Modules.Cutting.Api/SpaceOS.Modules.Cutting.Api.csproj" />
+    <ProjectReference Include="../../src/SpaceOS.Modules.Cutting.Execution.Domain/SpaceOS.Modules.Cutting.Execution.Domain.csproj" />
+    <ProjectReference Include="../../src/SpaceOS.Modules.Cutting.Execution.Application/SpaceOS.Modules.Cutting.Execution.Application.csproj" />
+    <ProjectReference Include="../../src/SpaceOS.Modules.Cutting.Execution.Infrastructure/SpaceOS.Modules.Cutting.Execution.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/SpaceOS.Modules.Cutting.Analytics.Domain/SpaceOS.Modules.Cutting.Analytics.Domain.csproj" />
+    <ProjectReference Include="../../src/SpaceOS.Modules.Cutting.Analytics.Application/SpaceOS.Modules.Cutting.Analytics.Application.csproj" />
+    <ProjectReference Include="../../src/SpaceOS.Modules.Cutting.Analytics.Infrastructure/SpaceOS.Modules.Cutting.Analytics.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

@@ -4,8 +4,13 @@ using SpaceOS.Modules.Cutting.Domain.Interfaces;
 
 namespace SpaceOS.Modules.Cutting.Application.Queries.GetExecutionStatus;
 
+/// <summary>
+/// Returns execution status for a cutting sheet. Phase 3 stub — superseded by Phase 4
+/// <c>GetExecutionQuery</c> in <c>SpaceOS.Modules.Cutting.Execution.Application</c>.
+/// </summary>
 public sealed class GetExecutionStatusQueryHandler : IRequestHandler<GetExecutionStatusQuery, Result<ExecutionStatusResponse>>
 {
+    // Repository kept for future Phase 4 integration
     private readonly ICuttingRepository _repository;
 
     public GetExecutionStatusQueryHandler(ICuttingRepository repository)
@@ -13,17 +18,9 @@ public sealed class GetExecutionStatusQueryHandler : IRequestHandler<GetExecutio
         _repository = repository;
     }
 
-    public async Task<Result<ExecutionStatusResponse>> Handle(GetExecutionStatusQuery request, CancellationToken ct)
+    public Task<Result<ExecutionStatusResponse>> Handle(GetExecutionStatusQuery request, CancellationToken ct)
     {
-        var execution = await _repository.GetExecutionBySheetIdAsync(request.SheetId, ct).ConfigureAwait(false);
-        if (execution is null)
-            return Result<ExecutionStatusResponse>.NotFound($"No execution found for sheet {request.SheetId}.");
-
-        return Result<ExecutionStatusResponse>.Success(new ExecutionStatusResponse(
-            execution.CuttingSheetId,
-            execution.Status.ToString(),
-            execution.StartedAt,
-            execution.CompletedAt,
-            execution.WasteAreaCm2));
+        // Phase 3 stub — query Phase 4 ICuttingExecutionRepository for real data.
+        return Task.FromResult(Result<ExecutionStatusResponse>.NotFound($"No execution found for sheet {request.SheetId}."));
     }
 }

@@ -83,7 +83,7 @@ public partial class AddCuttingPlanAggregate : Migration
 ALTER TABLE spaceos_cutting.""CuttingPlans"" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE spaceos_cutting.""CuttingPlans"" FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON spaceos_cutting.""CuttingPlans""
-    USING (""TenantId"" = current_setting('app.current_tenant_id')::uuid);
+    USING (""TenantId"" = COALESCE(NULLIF(current_setting('app.current_tenant_id', TRUE), ''), '00000000-0000-0000-0000-000000000000')::uuid);
 ");
     }
 

@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // Phase 3 stub — superseded by Execution.Domain in Phase 4
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using SpaceOS.Modules.Cutting.Domain.Aggregates;

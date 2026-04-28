@@ -15,6 +15,10 @@ internal sealed class PlanNestingSnapshotConfiguration : IEntityTypeConfiguratio
         builder.Property(x => x.CuttingPlanId).IsRequired();
         builder.Property(x => x.TenantId).IsRequired();
         builder.Property(x => x.NestingResultJson).IsRequired().HasColumnType("jsonb");
+        builder.Property(x => x.PlacementsJson).HasColumnType("jsonb").HasDefaultValue("{}");
+        builder.Property(x => x.YieldPercent).HasPrecision(8, 2).HasDefaultValue(0m);
+        builder.Property(x => x.WasteAreaMm2).HasDefaultValue(0L);
+        builder.Property(x => x.Algorithm).HasMaxLength(50).HasDefaultValue("");
         builder.Property(x => x.CreatedAt).IsRequired();
 
         builder.HasIndex(x => x.CuttingPlanId).IsUnique();

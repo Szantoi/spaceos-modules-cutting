@@ -47,20 +47,6 @@ public class CuttingRepository : ICuttingRepository
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
-    public async Task AddCuttingExecutionAsync(CuttingExecution execution, CancellationToken ct = default)
-        => await _db.CuttingExecutions.AddAsync(execution, ct).ConfigureAwait(false);
-
-    public async Task<CuttingExecution?> GetExecutionBySheetIdAsync(Guid sheetId, CancellationToken ct = default)
-        => await _db.CuttingExecutions.AsNoTracking()
-            .FirstOrDefaultAsync(e => e.CuttingSheetId == sheetId, ct)
-            .ConfigureAwait(false);
-
-    public async Task<IReadOnlyList<CuttingExecution>> GetCompletedExecutionsInRangeAsync(DateTime from, DateTime to, CancellationToken ct = default)
-        => await _db.CuttingExecutions.AsNoTracking()
-            .Where(e => e.Status == ExecutionStatus.Completed && e.CompletedAt >= from && e.CompletedAt <= to)
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
-
     public async Task AddCuttingPlanAsync(CuttingPlan plan, CancellationToken ct = default)
         => await _db.CuttingPlans.AddAsync(plan, ct).ConfigureAwait(false);
 
@@ -92,6 +78,19 @@ public class CuttingRepository : ICuttingRepository
         => await _db.DaySlots
             .Where(s => s.Status == DaySlotStatus.Open && s.SlotDate < date)
             .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<DaySlot>> GetOpenSlotsOrderedByDateAsync(CancellationToken ct = default)
+        => await _db.DaySlots
+            .Include(s => s.Jobs)
+            .Where(s => s.Status == DaySlotStatus.Open)
+            .OrderBy(s => s.SlotDate)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+    public async Task<bool> HasJobsForOrderAsync(Guid orderId, CancellationToken ct = default)
+        => await _db.CuttingJobs
+            .AnyAsync(j => j.OrderId == orderId, ct)
             .ConfigureAwait(false);
 
     public async Task SaveChangesAsync(CancellationToken ct = default)

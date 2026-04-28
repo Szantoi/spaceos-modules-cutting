@@ -2,7 +2,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
 using SpaceOS.Modules.Cutting.Domain.Entities;
-using SpaceOS.Modules.Cutting.Domain.Enums;
 using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
 using SpaceOS.Modules.Cutting.Infrastructure.Repositories;
 using Xunit;
@@ -85,56 +84,6 @@ public class CuttingRepositoryTests : IDisposable
     {
         var found = await _repo.GetDailyCuttingPlanByDateAsync(DateTime.UtcNow.Date.AddDays(-100));
         found.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task AddCuttingExecution_ShouldPersist()
-    {
-        var sheet = CreateSheet();
-        await _repo.AddCuttingSheetAsync(sheet);
-        await _repo.SaveChangesAsync();
-
-        var exec = CuttingExecution.Plan(_tenantId, sheet.Id, "operator1");
-        exec.Start();
-        exec.Complete(50m);
-        exec.PopDomainEvents();
-
-        await _repo.AddCuttingExecutionAsync(exec);
-        await _repo.SaveChangesAsync();
-
-        var found = await _repo.GetExecutionBySheetIdAsync(sheet.Id);
-        found.Should().NotBeNull();
-        found!.Status.Should().Be(ExecutionStatus.Completed);
-    }
-
-    [Fact]
-    public async Task GetCompletedExecutionsInRange_ShouldFilter()
-    {
-        var sheet = CreateSheet();
-        await _repo.AddCuttingSheetAsync(sheet);
-        await _repo.SaveChangesAsync();
-
-        var exec = CuttingExecution.Plan(_tenantId, sheet.Id, "op");
-        exec.Start();
-        exec.Complete(75m);
-        exec.PopDomainEvents();
-
-        await _repo.AddCuttingExecutionAsync(exec);
-        await _repo.SaveChangesAsync();
-
-        var from = DateTime.UtcNow.AddHours(-1);
-        var to = DateTime.UtcNow.AddHours(1);
-        var results = await _repo.GetCompletedExecutionsInRangeAsync(from, to);
-        results.Should().ContainSingle(e => e.Id == exec.Id);
-    }
-
-    [Fact]
-    public async Task GetCompletedExecutionsInRange_OutOfRange_ShouldReturnEmpty()
-    {
-        var from = DateTime.UtcNow.AddDays(-10);
-        var to = DateTime.UtcNow.AddDays(-9);
-        var results = await _repo.GetCompletedExecutionsInRangeAsync(from, to);
-        results.Should().BeEmpty();
     }
 
     [Fact]

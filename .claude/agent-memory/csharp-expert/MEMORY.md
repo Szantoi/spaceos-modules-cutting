@@ -24,3 +24,4 @@
 - [project_sprint_d_t08_status.md](project_sprint_d_t08_status.md) — T-01 Sprint D Phase 2 Query Endpoints CLOSED_DONE — BE-P2-02, BE-P2-03, 4 tool endpoints, migration 0015, RLS script — 766 tests passing (2026-04-07)
 - [project_sprint_d_t09_status.md](project_sprint_d_t09_status.md) — Sprint D Phase 3B Escrow GA Foundation CLOSED_DONE — 7 tasks, migrations 0020-0023, 913 tests passing (2026-04-07)
 - [project_sprint_d_msg_k028_status.md](project_sprint_d_msg_k028_status.md) — MSG-K028 Phase 3C BrandSkinId + brand_skin JWT claim + tenantId bug fix CLOSED_DONE — migration 0024, 915 tests passing (2026-04-07)
+- [project_sprint_cutting_phase6_s1s3_status.md](project_sprint_cutting_phase6_s1s3_status.md) — Cutting Phase 6 S1-S3 Adapter Foundation + Framework + Resolver CLOSED_DONE — 5 migrations, 127 new tests, 861 total (2026-04-28)

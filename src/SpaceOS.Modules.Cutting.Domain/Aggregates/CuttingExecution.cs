@@ -4,6 +4,7 @@ using SpaceOS.Modules.Cutting.Domain.Events;
 
 namespace SpaceOS.Modules.Cutting.Domain.Aggregates;
 
+[Obsolete("Phase 3 execution stub. Use SpaceOS.Modules.Cutting.Execution.Domain.Aggregates.CuttingExecution instead (Phase 4).")]
 public class CuttingExecution : AggregateRoot
 {
     public Guid Id { get; private set; }
