@@ -1,6 +1,8 @@
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SpaceOS.Modules.Cutting.Application.Adapters;
 using SpaceOS.Modules.Cutting.Application.Events;
 using SpaceOS.Modules.Cutting.Application.Services;
 using SpaceOS.Modules.Cutting.Contracts.Providers;
@@ -8,11 +10,16 @@ using SpaceOS.Modules.Cutting.Domain.Interfaces;
 using SpaceOS.Modules.Cutting.Domain.Services;
 using SpaceOS.Nesting.Algorithms;
 using SpaceOS.Nesting.Algorithms.Strategies;
+using SpaceOS.Modules.Cutting.Infrastructure.Adapters;
+using SpaceOS.Modules.Cutting.Infrastructure.Adapters.Background;
+using SpaceOS.Modules.Cutting.Infrastructure.Adapters.FileSystem;
+using SpaceOS.Modules.Cutting.Infrastructure.Adapters.Providers;
+using SpaceOS.Modules.Cutting.Infrastructure.Adapters.Resilience;
+using SpaceOS.Modules.Cutting.Infrastructure.Adapters.Transport;
 using SpaceOS.Modules.Cutting.Infrastructure.Events;
 using SpaceOS.Modules.Cutting.Infrastructure.Outbox;
 using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
 using SpaceOS.Modules.Cutting.Infrastructure.Repositories;
-using SpaceOS.Modules.Cutting.Infrastructure.Adapters;
 using SpaceOS.Modules.Cutting.Infrastructure.Workers;
 using OldInventoryProvider = SpaceOS.Modules.Inventory.Contracts.Providers.IInventoryProvider;
 
@@ -71,6 +78,76 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddHostedService<DaySlotAutoLockWorker>();
+
+        // ── Adapter framework ──────────────────────────────────────────────
+        // Distributed cache (in-memory fallback; production uses Redis)
+        services.AddDistributedMemoryCache();
+
+        // Infrastructure utilities
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IBoundedSubprocessRunner, BoundedSubprocessRunner>();
+        services.AddScoped<ITenantAdapterStorage, TenantAdapterStorage>();
+
+        // Transports
+        services.AddScoped<FileExchangeTransport>();
+        services.AddScoped<CliWrapperTransport>();
+        services.AddScoped<RestApiTransport>();
+
+        // Format converters
+        services.AddScoped<OptiCutFormatConverter>();
+        services.AddScoped<CutRiteFormatConverter>();
+
+        // Audit + repositories
+        services.AddScoped<IAdapterCallAuditWriter, AdapterCallAuditWriter>();
+        services.AddScoped<ITenantCuttingProviderConfigRepository, TenantCuttingProviderConfigRepository>();
+        services.AddScoped<IAdapterHealthRecordRepository, AdapterHealthRecordRepository>();
+
+        // Secret detector (ConfigSecretDetector is in Application layer)
+        services.AddSingleton<IConfigSecretDetector, SpaceOS.Modules.Cutting.Application.Adapters.ConfigSecretDetector>();
+
+        // Named provider implementations
+        services.AddScoped<CuttingProviderAdapter>();
+        services.AddScoped<BuiltinCuttingProvider>();
+        services.AddScoped<OptiCutAdapter>(sp => new OptiCutAdapter(
+            sp.GetRequiredService<FileExchangeTransport>(),
+            sp.GetRequiredService<OptiCutFormatConverter>(),
+            sp.GetRequiredService<IAdapterCallAuditWriter>(),
+            sp.GetRequiredService<ICuttingTenantAccessor>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<OptiCutAdapter>>()));
+        services.AddScoped<CutRiteAdapter>(sp => new CutRiteAdapter(
+            sp.GetRequiredService<CliWrapperTransport>(),
+            sp.GetRequiredService<CutRiteFormatConverter>(),
+            sp.GetRequiredService<IAdapterCallAuditWriter>(),
+            sp.GetRequiredService<ICuttingTenantAccessor>(),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CutRiteAdapter>>()));
+        services.AddScoped<ManualAdapter>();
+
+        // Adapter factory — creates one per scope with all four named providers
+        services.AddScoped<IAdapterFactory>(sp => new AdapterFactory(new[]
+        {
+            new KeyedAdapterRegistration("builtin", sp.GetRequiredService<BuiltinCuttingProvider>()),
+            new KeyedAdapterRegistration("opticut", sp.GetRequiredService<OptiCutAdapter>()),
+            new KeyedAdapterRegistration("cutrite", sp.GetRequiredService<CutRiteAdapter>()),
+            new KeyedAdapterRegistration("manual", sp.GetRequiredService<ManualAdapter>()),
+        }));
+
+        // Provider resolver (reads tenant config → returns correct provider)
+        services.AddScoped<ICuttingProviderResolver>(sp =>
+        {
+            var tenantAccessor = sp.GetRequiredService<ICuttingTenantAccessor>();
+            return new CuttingProviderResolver(
+                sp.GetRequiredService<IAdapterFactory>(),
+                sp.GetRequiredService<ITenantCuttingProviderConfigRepository>(),
+                sp.GetRequiredService<IDistributedCache>(),
+                sp.GetRequiredService<IAdapterCallAuditWriter>(),
+                sp.GetRequiredService<TimeProvider>(),
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<CuttingProviderResolver>>(),
+                () => tenantAccessor.TenantId);
+        });
+
+        // Background services
+        services.AddHostedService<AdapterConfigInvalidationListener>();
+        services.AddHostedService<PollSchedulerBackgroundService>();
 
         return services;
     }

@@ -64,6 +64,7 @@ app.MapInternalEndpoints();
 app.MapCuttingExecutionEndpoints();
 app.MapHub<ExecutionHub>("/hubs/execution");
 app.MapAnalyticsEndpoints();
+app.MapAdapterAdminEndpoints();
 app.Run();
 
 public partial class Program { }
