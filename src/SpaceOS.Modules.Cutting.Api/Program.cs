@@ -1,5 +1,7 @@
 using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using SpaceOS.Modules.Cutting.Analytics.Application.Projections;
 using SpaceOS.Modules.Cutting.Analytics.Infrastructure.Extensions;
 using SpaceOS.Modules.Cutting.Api.Endpoints;
@@ -9,6 +11,7 @@ using SpaceOS.Modules.Cutting.Execution.Infrastructure.Extensions;
 using SpaceOS.Modules.Cutting.Execution.Infrastructure.Realtime;
 using SpaceOS.Modules.Cutting.Infrastructure.Extensions;
 using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +22,35 @@ builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssemblyContaining<ScheduleExecutionCommand>());
 
 builder.Services.AddHealthChecks();
-builder.Services.AddAuthentication().AddJwtBearer(opts => { opts.MapInboundClaims = false; });
+
+var jwtAuthority = builder.Configuration["Jwt:Authority"]
+    ?? Environment.GetEnvironmentVariable("JWT_AUTHORITY");
+var jwtAudience = builder.Configuration["Jwt:Audience"]
+    ?? Environment.GetEnvironmentVariable("JWT_AUDIENCE")
+    ?? "kernel-api";
+
+if (builder.Environment.IsProduction())
+    ArgumentNullException.ThrowIfNullOrEmpty(jwtAuthority,
+        "Jwt:Authority / JWT_AUTHORITY must be configured");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(opts =>
+    {
+        opts.MapInboundClaims = false;
+        opts.Authority = jwtAuthority;
+        opts.Audience = jwtAudience;
+        opts.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        opts.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer   = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ClockSkew        = TimeSpan.FromSeconds(30),
+            NameClaimType    = "preferred_username",
+            RoleClaimType    = ClaimTypes.Role,
+        };
+    });
+
 builder.Services.AddAuthorization(opts =>
     opts.AddPolicy("ManufacturerOnly", p => p.RequireAuthenticatedUser()));
 
