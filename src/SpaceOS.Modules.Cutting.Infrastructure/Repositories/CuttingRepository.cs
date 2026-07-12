@@ -3,6 +3,7 @@ using SpaceOS.Modules.Cutting.Domain.Aggregates;
 using SpaceOS.Modules.Cutting.Domain.Entities;
 using SpaceOS.Modules.Cutting.Domain.Enums;
 using SpaceOS.Modules.Cutting.Domain.Interfaces;
+using SpaceOS.Modules.Cutting.Domain.ValueObjects;
 using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
 
 namespace SpaceOS.Modules.Cutting.Infrastructure.Repositories;
@@ -91,6 +92,51 @@ public class CuttingRepository : ICuttingRepository
     public async Task<bool> HasJobsForOrderAsync(Guid orderId, CancellationToken ct = default)
         => await _db.CuttingJobs
             .AnyAsync(j => j.OrderId == orderId, ct)
+            .ConfigureAwait(false);
+
+    public async Task AddBatchAssignmentAsync(BatchAssignment assignment, CancellationToken ct = default)
+        => await _db.BatchAssignments.AddAsync(assignment, ct).ConfigureAwait(false);
+
+    public async Task<BatchAssignment?> GetBatchAssignmentAsync(Guid batchId, DateOnly planDate, CancellationToken ct = default)
+        => await _db.BatchAssignments.AsNoTracking()
+            .FirstOrDefaultAsync(a => a.BatchId == batchId && a.PlanDate == planDate, ct)
+            .ConfigureAwait(false);
+
+    public async Task<CuttingBatch?> GetCuttingBatchByIdAsync(Guid batchId, CancellationToken ct = default)
+        => await _db.CuttingBatches.AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == batchId, ct)
+            .ConfigureAwait(false);
+
+    // PublicQuoteRequest (Q3 Track A - MSG-BACKEND-078)
+    public async Task AddPublicQuoteRequestAsync(PublicQuoteRequest quoteRequest, CancellationToken ct = default)
+        => await _db.PublicQuoteRequests.AddAsync(quoteRequest, ct).ConfigureAwait(false);
+
+    public async Task<PublicQuoteRequest?> GetPublicQuoteRequestByIdAsync(Guid id, CancellationToken ct = default)
+        => await _db.PublicQuoteRequests.AsNoTracking()
+            .FirstOrDefaultAsync(q => q.Id == id, ct)
+            .ConfigureAwait(false);
+
+    // PricingRule (Q3 Track B - MSG-BACKEND-031)
+    public async Task AddPricingRuleAsync(PricingRule pricingRule, CancellationToken ct = default)
+        => await _db.PricingRules.AddAsync(pricingRule, ct).ConfigureAwait(false);
+
+    public async Task<PricingRule?> GetPricingRuleByIdAsync(Guid id, CancellationToken ct = default)
+        => await _db.PricingRules.AsNoTracking()
+            .Include(pr => pr.QuantityBreakpoints)
+            .Include(pr => pr.LeadTimeAdjustments)
+            .Include(pr => pr.MaterialSurcharges)
+            .FirstOrDefaultAsync(pr => pr.Id == id, ct)
+            .ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<PricingRule>> GetActivePricingRulesBySupplerAndCategoryAsync(Guid supplierId, string productCategory, CancellationToken ct = default)
+        => await _db.PricingRules.AsNoTracking()
+            .Include(pr => pr.QuantityBreakpoints)
+            .Include(pr => pr.LeadTimeAdjustments)
+            .Include(pr => pr.MaterialSurcharges)
+            .Where(pr => pr.SupplierId == supplierId
+                && pr.ProductCategory == productCategory
+                && pr.Status == PricingRuleStatus.Active)
+            .ToListAsync(ct)
             .ConfigureAwait(false);
 
     public async Task SaveChangesAsync(CancellationToken ct = default)

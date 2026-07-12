@@ -23,6 +23,7 @@ public class CuttingDbContext : DbContext
     public DbSet<CuttingLine> CuttingLines => Set<CuttingLine>();
     public DbSet<DailyCuttingPlan> DailyCuttingPlans => Set<DailyCuttingPlan>();
     public DbSet<CuttingBatch> CuttingBatches => Set<CuttingBatch>();
+    public DbSet<BatchAssignment> BatchAssignments => Set<BatchAssignment>();
 
     // CuttingPlan aggregate (planning)
     public DbSet<CuttingPlan> CuttingPlans => Set<CuttingPlan>();
@@ -37,6 +38,23 @@ public class CuttingDbContext : DbContext
 
     // PlanNestingSnapshot
     public DbSet<PlanNestingSnapshot> PlanNestingSnapshots => Set<PlanNestingSnapshot>();
+
+    // Q3 — Quote Request (public customer self-service)
+    public DbSet<CuttingQuoteRequest> QuoteRequests => Set<CuttingQuoteRequest>();
+
+    // Q3 Track A — Public Quote Request (B2C, MSG-BACKEND-030)
+    public DbSet<PublicQuoteRequest> PublicQuoteRequests => Set<PublicQuoteRequest>();
+
+    // Q3 Track B — Pricing
+    public DbSet<PriceList> PriceLists => Set<PriceList>();
+    public DbSet<MaterialPricing> MaterialPricings => Set<MaterialPricing>();
+    public DbSet<ComplexityModifier> ComplexityModifiers => Set<ComplexityModifier>();
+
+    // Q3 Track B Phase 1 — Pricing Rule Engine (MSG-BACKEND-031)
+    public DbSet<PricingRule> PricingRules => Set<PricingRule>();
+    public DbSet<QuantityBreakpoint> QuantityBreakpoints => Set<QuantityBreakpoint>();
+    public DbSet<LeadTimeAdjustment> LeadTimeAdjustments => Set<LeadTimeAdjustment>();
+    public DbSet<MaterialSurcharge> MaterialSurcharges => Set<MaterialSurcharge>();
 
     // Phase 4 — Execution aggregate
     public DbSet<ExecutionAggregate> CuttingExecutions => Set<ExecutionAggregate>();
@@ -61,12 +79,15 @@ public class CuttingDbContext : DbContext
         modelBuilder.ApplyConfiguration(new CuttingLineConfiguration());
         modelBuilder.ApplyConfiguration(new DailyCuttingPlanConfiguration());
         modelBuilder.ApplyConfiguration(new CuttingBatchConfiguration());
+        modelBuilder.ApplyConfiguration(new BatchAssignmentConfiguration());
         modelBuilder.ApplyConfiguration(new CuttingPlanConfiguration());
         modelBuilder.ApplyConfiguration(new DaySlotConfiguration());
         modelBuilder.ApplyConfiguration(new CuttingJobConfiguration());
         modelBuilder.ApplyConfiguration(new PriorityProfileConfiguration());
         modelBuilder.ApplyConfiguration(new PanelReservationConfiguration());
         modelBuilder.ApplyConfiguration(new PlanNestingSnapshotConfiguration());
+        modelBuilder.ApplyConfiguration(new CuttingQuoteRequestConfiguration());
+        modelBuilder.ApplyConfiguration(new PublicQuoteRequestConfiguration());
 
         // Phase 4 configurations
         modelBuilder.ApplyConfiguration(new ExecutionCuttingExecutionConfiguration());

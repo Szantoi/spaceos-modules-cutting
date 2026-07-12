@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using SpaceOS.Modules.Cutting.Execution.Application.Ports;
+using SpaceOS.Modules.Cutting.Execution.Application.Services;
 using SpaceOS.Modules.Cutting.Execution.Domain.Interfaces;
 using SpaceOS.Modules.Cutting.Execution.Infrastructure.Audit;
 using SpaceOS.Modules.Cutting.Execution.Infrastructure.Crypto;
@@ -7,6 +8,7 @@ using SpaceOS.Modules.Cutting.Execution.Infrastructure.HashChain;
 using SpaceOS.Modules.Cutting.Execution.Infrastructure.Inventory;
 using SpaceOS.Modules.Cutting.Execution.Infrastructure.Persistence.Repositories;
 using SpaceOS.Modules.Cutting.Execution.Infrastructure.Realtime;
+using SpaceOS.Modules.Cutting.Execution.Infrastructure.Security;
 using SpaceOS.Modules.Cutting.Execution.Infrastructure.StageRegistry;
 using SpaceOS.Modules.Cutting.Infrastructure.Outbox;
 
@@ -45,6 +47,13 @@ public static class CuttingExecutionInfrastructureExtensions
 
         // SignalR real-time publisher
         services.AddScoped<ICuttingExecutionRealtimePublisher, SignalRCuttingExecutionRealtimePublisher>();
+
+        // Security policies (stub implementations for dev/test)
+        services.AddScoped<IWorkerSecurityPolicy, NullWorkerSecurityPolicy>();
+        services.AddScoped<ICuttingProofPolicy, NullCuttingProofPolicy>();
+
+        // Application services
+        services.AddScoped<PredicateFactoryV1>();
 
         return services;
     }

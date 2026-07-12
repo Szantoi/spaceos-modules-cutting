@@ -31,6 +31,33 @@ public interface ICuttingRepository
     /// <summary>Checks if any CuttingJobs already exist for the given OrderId.</summary>
     Task<bool> HasJobsForOrderAsync(Guid orderId, CancellationToken ct = default);
 
+    // BatchAssignment
+    /// <summary>Adds a new BatchAssignment record.</summary>
+    Task AddBatchAssignmentAsync(BatchAssignment assignment, CancellationToken ct = default);
+
+    /// <summary>Returns a BatchAssignment if one already exists for the given batch and date.</summary>
+    Task<BatchAssignment?> GetBatchAssignmentAsync(Guid batchId, DateOnly planDate, CancellationToken ct = default);
+
+    /// <summary>Gets a CuttingBatch by its ID (includes validation that it exists).</summary>
+    Task<CuttingBatch?> GetCuttingBatchByIdAsync(Guid batchId, CancellationToken ct = default);
+
+    // PublicQuoteRequest (Q3 Track A - MSG-BACKEND-078)
+    /// <summary>Adds a new PublicQuoteRequest (public API quote request).</summary>
+    Task AddPublicQuoteRequestAsync(PublicQuoteRequest quoteRequest, CancellationToken ct = default);
+
+    /// <summary>Gets a PublicQuoteRequest by its ID.</summary>
+    Task<PublicQuoteRequest?> GetPublicQuoteRequestByIdAsync(Guid id, CancellationToken ct = default);
+
+    // PricingRule (Q3 Track B - MSG-BACKEND-031)
+    /// <summary>Adds a new PricingRule.</summary>
+    Task AddPricingRuleAsync(PricingRule pricingRule, CancellationToken ct = default);
+
+    /// <summary>Gets a PricingRule by its ID (includes related entities: breakpoints, adjustments, surcharges).</summary>
+    Task<PricingRule?> GetPricingRuleByIdAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Gets all active PricingRules for a specific supplier and product category.</summary>
+    Task<IReadOnlyList<PricingRule>> GetActivePricingRulesBySupplerAndCategoryAsync(Guid supplierId, string productCategory, CancellationToken ct = default);
+
     Task SaveChangesAsync(CancellationToken ct = default);
 
     // Internal / test-reset operations

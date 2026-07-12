@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="10.0.1">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="WireMock.Net" Version="1.5.70" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+    <PackageReference Include="FluentAssertions" Version="6.12.2" />
+    <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.11" />
+    <PackageReference Include="Ardalis.Specification" Version="8.0.0" />
+    <PackageReference Include="Testcontainers" Version="3.10.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="3.10.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/SpaceOS.Modules.Cutting.Domain/SpaceOS.Modules.Cutting.Domain.csproj" />
+    <ProjectReference Include="../../src/SpaceOS.Modules.Cutting.Application/SpaceOS.Modules.Cutting.Application.csproj" />
+    <ProjectReference Include="../../src/SpaceOS.Modules.Cutting.Infrastructure/SpaceOS.Modules.Cutting.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

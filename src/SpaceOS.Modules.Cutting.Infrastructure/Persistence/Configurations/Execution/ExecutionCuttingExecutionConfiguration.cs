@@ -19,8 +19,10 @@ public sealed class ExecutionCuttingExecutionConfiguration
 
         builder.Property(x => x.Id).ValueGeneratedNever();
         builder.Property(x => x.TenantId).IsRequired();
+        builder.Property(x => x.BatchId); // Nullable for backward compatibility
         builder.Property(x => x.SheetId).IsRequired();
         builder.Property(x => x.MachineId).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.Priority); // Nullable for backward compatibility
 
         builder.Property(x => x.Status)
             .HasConversion<string>()

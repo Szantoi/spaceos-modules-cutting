@@ -45,11 +45,26 @@ public static class ServiceCollectionExtensions
                 sp.GetRequiredService<OutboxSaveChangesInterceptor>());
         });
 
+        // Register DbContext factory (required for TenantResolver cross-schema queries)
+        // NOTE: Factory is registered as Singleton with explicit options to avoid scoped dependency issues
+        services.AddDbContextFactory<CuttingDbContext>(options =>
+        {
+            options.UseNpgsql(connectionString, npg =>
+                npg.MigrationsHistoryTable("__EFMigrationsHistory", "spaceos_cutting"));
+            // Interceptors NOT added here - they are scoped and would cause lifetime conflicts
+        });
+
         services.AddScoped<ICuttingRepository, CuttingRepository>();
         services.AddScoped<IPriorityProfileRepository, PriorityProfileRepository>();
         services.AddScoped<IPanelReservationRepository, PanelReservationRepository>();
         services.AddScoped<IPlanNestingSnapshotRepository, PlanNestingSnapshotRepository>();
+        services.AddScoped<IQuoteRequestRepository, QuoteRequestRepository>();
+        services.AddScoped<IQuoteNotificationService, SpaceOS.Modules.Cutting.Infrastructure.Services.QuoteNotificationService>();
         services.AddScoped<ICuttingTenantAccessor, HttpContextCuttingTenantAccessor>();
+
+        // Q3 Track A: Tenant resolver + Email service
+        services.AddScoped<ITenantResolver, SpaceOS.Modules.Cutting.Infrastructure.Services.TenantResolver>();
+        services.AddScoped<IEmailService, SpaceOS.Modules.Cutting.Infrastructure.Services.EmailService>();
         services.AddScoped<ICuttingProvider, CuttingProviderAdapter>();
         services.AddSingleton<INestingStrategy, FfdhNestingStrategy>();
         services.AddSingleton<NestingStrategyFactory>();
@@ -89,6 +104,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITenantAdapterStorage, TenantAdapterStorage>();
 
         // Transports
+        services.AddSingleton<IIpRangeChecker, IpRangeChecker>();
         services.AddScoped<FileExchangeTransport>();
         services.AddScoped<CliWrapperTransport>();
         services.AddScoped<RestApiTransport>();

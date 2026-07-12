@@ -15,6 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="../SpaceOS.Modules.Cutting.Domain/SpaceOS.Modules.Cutting.Domain.csproj" />
     <ProjectReference Include="../SpaceOS.Modules.Cutting.Contracts/SpaceOS.Modules.Cutting.Contracts.csproj" />
+    <ProjectReference Include="../SpaceOS.Modules.Cutting.Execution.Domain/SpaceOS.Modules.Cutting.Execution.Domain.csproj" />
     <ProjectReference Include="../../../spaceos-nesting-algorithms/SpaceOS.Nesting.Algorithms/SpaceOS.Nesting.Algorithms.csproj" />
     <PackageReference Include="SpaceOS.Modules.Inventory.Contracts" Version="1.1.0" />
   </ItemGroup>

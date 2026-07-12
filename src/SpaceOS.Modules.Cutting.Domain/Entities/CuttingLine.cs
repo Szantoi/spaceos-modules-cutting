@@ -17,7 +17,7 @@ public class CuttingLine
     public static CuttingLine Create(Guid cuttingSheetId, string partName, string materialType,
         decimal widthMm, decimal heightMm, decimal thicknessMm, int quantity, string? notes = null)
     {
-        if (cuttingSheetId == Guid.Empty) throw new ArgumentException("CuttingSheetId required.", nameof(cuttingSheetId));
+        // Note: cuttingSheetId can be Guid.Empty for template lines (recreated by CuttingSheet.Create)
         ArgumentException.ThrowIfNullOrWhiteSpace(partName);
         if (widthMm <= 0) throw new ArgumentException("Width must be positive.", nameof(widthMm));
         if (heightMm <= 0) throw new ArgumentException("Height must be positive.", nameof(heightMm));

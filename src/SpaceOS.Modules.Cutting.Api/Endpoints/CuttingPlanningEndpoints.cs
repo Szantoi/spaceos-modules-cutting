@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using SpaceOS.Modules.Cutting.Application.Commands.AssignBatch;
 using SpaceOS.Modules.Cutting.Application.Commands.CloseCuttingPlan;
 using SpaceOS.Modules.Cutting.Application.Commands.ReservePanels;
 using SpaceOS.Modules.Cutting.Application.Commands.CompleteJob;
@@ -38,6 +39,12 @@ public static class CuttingPlanningEndpoints
             .RequireAuthorization("ManufacturerOnly");
         profileGroup.MapGet("/", GetPriorityProfiles);
         profileGroup.MapPost("/", CreatePriorityProfile);
+
+        // Plans endpoints — POST /cutting/api/plans/{date}/assign-batch
+        var plansGroup = app.MapGroup("/cutting/api/plans")
+            .RequireAuthorization();
+        plansGroup.MapPost("/{date}/assign-batch", AssignBatch)
+            .RequireAuthorization(policy => policy.RequireRole("machine_operator", "production_manager"));
 
         return app;
     }
@@ -275,6 +282,49 @@ public static class CuttingPlanningEndpoints
         return Results.Created($"/api/cutting/priority-profiles/{result.Value}", new { id = result.Value });
     }
 
+    private static async Task<IResult> AssignBatch(
+        string date,
+        AssignBatchRequest request,
+        IMediator mediator,
+        HttpContext httpContext,
+        CancellationToken ct)
+    {
+        var tenantId = GetTenantId(httpContext);
+        if (tenantId == Guid.Empty) return Results.Unauthorized();
+
+        if (!DateOnly.TryParse(date, out var planDate))
+            return Results.BadRequest("Invalid date format. Use yyyy-MM-dd.");
+
+        if (request.BatchId == Guid.Empty)
+            return Results.BadRequest("BatchId is required.");
+        if (request.MachineId == Guid.Empty)
+            return Results.BadRequest("MachineId is required.");
+        if (request.OperatorId == Guid.Empty)
+            return Results.BadRequest("OperatorId is required.");
+
+        var command = new AssignBatchCommand(
+            TenantId: tenantId,
+            PlanDate: planDate,
+            BatchId: request.BatchId,
+            MachineId: request.MachineId,
+            OperatorId: request.OperatorId,
+            Priority: request.Priority,
+            StartTime: request.StartTime);
+
+        var result = await mediator.Send(command, ct).ConfigureAwait(false);
+
+        return result.Status switch
+        {
+            Ardalis.Result.ResultStatus.Ok => Results.Ok(
+                new { executionId = result.Value.ExecutionId, status = result.Value.Status }),
+            Ardalis.Result.ResultStatus.Conflict => Results.Conflict(
+                new { error = string.Join("; ", result.Errors) }),
+            Ardalis.Result.ResultStatus.Invalid => Results.BadRequest(result.ValidationErrors),
+            Ardalis.Result.ResultStatus.NotFound => Results.NotFound(result.Errors),
+            _ => Results.StatusCode(500)
+        };
+    }
+
     private static Guid GetTenantId(HttpContext ctx)
     {
         var claim = ctx.User?.FindFirst("tid")?.Value;
@@ -292,3 +342,9 @@ public sealed record CreatePriorityProfileRequest(
     string PlanningStrategyId,
     bool IsDefault = false);
 public sealed record PublishCuttingPlanRequest(Guid ProfileSnapshotId);
+public sealed record AssignBatchRequest(
+    Guid BatchId,
+    Guid MachineId,
+    Guid OperatorId,
+    int Priority,
+    DateTime StartTime);

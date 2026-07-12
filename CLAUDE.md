@@ -1,5 +1,40 @@
 # SpaceOS.Modules.Cutting — CLAUDE.md
 
+## SESSION STARTUP/SHUTDOWN RITUAL
+
+**Minden session elején:**
+```bash
+# 0. Datahaven státusz regisztráció — jelezd hogy dolgozol
+curl -X POST https://datahaven.joinerytech.hu/api/terminal/status \
+  -H "Authorization: Bearer dev-token-spaceos-dashboard-2026" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "terminal": "cutting",
+    "status": "working",
+    "currentTask": "Session started - checking inbox"
+  }'
+
+# 1. Inbox ellenőrzés
+ls /opt/spaceos/docs/mailbox/cutting/inbox/
+grep -l "status: UNREAD" /opt/spaceos/docs/mailbox/cutting/inbox/*.md 2>/dev/null
+```
+
+**Session végén (DONE/BLOCKED outbox után):**
+```bash
+# Datahaven státusz regisztráció — jelezd hogy befejeztél
+curl -X POST https://datahaven.joinerytech.hu/api/terminal/status \
+  -H "Authorization: Bearer dev-token-spaceos-dashboard-2026" \
+  -H "Content-Type: application/json" \
+  -d '{"terminal":"cutting","status":"idle"}'
+```
+
+**Datahaven Dashboard:** https://datahaven.joinerytech.hu (token: `dev-token-spaceos-dashboard-2026`)
+- Dashboard (`/`) — Cutting státusz (WORKING/IDLE), inbox/outbox metrikák
+- Kanban (`/kanban`) — Cutting swimlane a Delivery track-en
+- Teljes API: `docs/WORKFLOW.md` — "Datahaven Dashboard" szakasz
+
+---
+
 ## JELENLEGI ÁLLAPOT (2026-04-17)
 
 | | |
@@ -258,10 +293,17 @@ Minden befejezett feladat után kötelező outbox üzenetet írni.
 Fájlnév: `YYYY-MM-DD_NNN_[slug]-done.md` → `/opt/spaceos/docs/mailbox/cutting/outbox/`
 
 ```markdown
+## Memory (hideg indításhoz)
+
+**Első lépés:** `cat /opt/spaceos/docs/memory/cutting.md`
+
+**DONE előtt:** Frissítsd a memory fájlt!
+
+---
 ---
 id: MSG-CUTTING-NNN-DONE
 from: cutting
-to: root
+to: conductor
 type: done
 status: UNREAD
 ---
@@ -281,6 +323,13 @@ status: UNREAD
 
 **Ha elakadtál:** `status: BLOCKED` outbox üzenettel jelezz — ne folytasd találgatással.
 
+## Memory (hideg indításhoz)
+
+**Első lépés:** `cat /opt/spaceos/docs/memory/cutting.md`
+
+**DONE előtt:** Frissítsd a memory fájlt!
+
+---
 ---
 
 ## Közös erőforrások
@@ -293,3 +342,27 @@ status: UNREAD
 - **Projekt vízió (üzleti)**: `/opt/spaceos/docs/SpaceOS_Vision_Results_20260413.md`
 - **Technikai master overview**: `/opt/spaceos/docs/vision/SpaceOS_Vision_Master.md`
 - **`/spaceos-terminal` skill**: `/opt/spaceos/.claude/skills/spaceos-terminal/`
+
+---
+
+## BACKEND IMPLEMENTÁCIÓS CHECKLIST
+
+Minden feature/bugfix végén, DONE outbox előtt:
+
+- [ ] Entity creation factory method-dal (nem publikus constructor)
+- [ ] Setter-ek private-ok
+- [ ] Domain validation implementálva (nem controller-ben)
+- [ ] Controller/endpoint csak DTO-t ad vissza (entity soha)
+- [ ] Unit test üzleti logikára
+- [ ] `dotnet build` 0 error
+- [ ] `dotnet test` minden zöld
+
+### QA Handoff kritérium
+
+A TESTER terminált ROOT hívja be ha a feladat:
+- Üzleti validációs logikát tartalmaz (pl. rendelés állapotgép, ár kalkuláció)
+- Pénzügyi számítást végez
+- Workflow / FSM state machine-t érint
+- A task explicit jelzi: "QA needed: Yes"
+
+Egyszerű CRUD endpoint-ok NEM igényelnek QA-t, kivéve ha explicit kérve van.

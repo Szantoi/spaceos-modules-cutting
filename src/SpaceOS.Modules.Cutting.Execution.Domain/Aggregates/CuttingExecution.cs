@@ -20,6 +20,7 @@ public sealed class CuttingExecution : AggregateRoot
 
     public Guid Id { get; private set; }
     public Guid TenantId { get; private set; }
+    public Guid? BatchId { get; private set; }
     public Guid SheetId { get; private set; }
     public WorkerAssignment WorkerAssignment { get; private set; } = null!;
     public string MachineId { get; private set; } = string.Empty;
@@ -36,6 +37,7 @@ public sealed class CuttingExecution : AggregateRoot
     public decimal OffcutAreaMm2 { get; private set; }
     public decimal TotalAreaMm2 { get; private set; }
     public bool WorkerConsentActive { get; private set; } = true;
+    public int? Priority { get; private set; }
 
     public IReadOnlyList<ProgressEvent> ProgressEvents => _progressEvents.AsReadOnly();
     public IReadOnlyList<OffcutReport> OffcutReports => _offcutReports.AsReadOnly();
@@ -77,6 +79,54 @@ public sealed class CuttingExecution : AggregateRoot
             MachineId = machineId,
             ScheduleWindow = scheduleWindow,
             TotalPanels = totalPanels,
+            Status = CuttingExecutionStatus.Scheduled,
+            ScheduledAt = now
+        };
+
+        execution.RaiseDomainEvent(new CuttingExecutionScheduled(execution.Id, tenantId, sheetId, now));
+        return Result<CuttingExecution>.Success(execution);
+    }
+
+    /// <summary>
+    /// Creates a new scheduled execution with batch assignment. Returns <see cref="Result.Invalid"/> when any required field is empty or invalid.
+    /// </summary>
+    public static Result<CuttingExecution> ScheduleWithBatchAssignment(
+        Guid batchId,
+        Guid sheetId,
+        WorkerAssignment workerAssignment,
+        string machineId,
+        ScheduleWindow scheduleWindow,
+        int totalPanels,
+        int priority,
+        Guid tenantId)
+    {
+        if (batchId == Guid.Empty)
+            return Result<CuttingExecution>.Invalid(new ValidationError("BatchId must not be empty."));
+        if (sheetId == Guid.Empty)
+            return Result<CuttingExecution>.Invalid(new ValidationError("SheetId must not be empty."));
+        ArgumentNullException.ThrowIfNull(workerAssignment);
+        if (string.IsNullOrWhiteSpace(machineId))
+            return Result<CuttingExecution>.Invalid(new ValidationError("MachineId must not be empty."));
+        ArgumentNullException.ThrowIfNull(scheduleWindow);
+        if (totalPanels <= 0)
+            return Result<CuttingExecution>.Invalid(new ValidationError("TotalPanels must be positive."));
+        if (priority < 1 || priority > 10)
+            return Result<CuttingExecution>.Invalid(new ValidationError("Priority must be between 1 and 10."));
+        if (tenantId == Guid.Empty)
+            return Result<CuttingExecution>.Invalid(new ValidationError("TenantId must not be empty."));
+
+        var now = DateTime.UtcNow;
+        var execution = new CuttingExecution
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            BatchId = batchId,
+            SheetId = sheetId,
+            WorkerAssignment = workerAssignment,
+            MachineId = machineId,
+            ScheduleWindow = scheduleWindow,
+            TotalPanels = totalPanels,
+            Priority = priority,
             Status = CuttingExecutionStatus.Scheduled,
             ScheduledAt = now
         };
