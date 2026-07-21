@@ -16,7 +16,8 @@ public static class PricingRuleEndpoints
     public static void MapPricingRuleEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/pricing-rules")
-            .WithTags("Pricing Rules");
+            .WithTags("Pricing Rules")
+            .RequireAuthorization("ManufacturerOnly");
 
         // POST /api/pricing-rules — Create new pricing rule
         group.MapPost("/", CreatePricingRule)

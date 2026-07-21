@@ -15,8 +15,20 @@ public class HttpContextCuttingTenantAccessor : ICuttingTenantAccessor
     {
         get
         {
-            var claim = _httpContextAccessor.HttpContext?.User?.FindFirst("tenant_id")?.Value;
-            return Guid.TryParse(claim, out var id) ? id : Guid.Empty;
+            var user = _httpContextAccessor.HttpContext?.User;
+            var primaryClaim = user?.FindFirst("tid");
+
+            // A present but malformed primary claim must fail closed. Falling back in
+            // that case would let a conflicting legacy claim override the wire contract.
+            if (primaryClaim is not null)
+                return Guid.TryParse(primaryClaim.Value, out var primaryId)
+                    ? primaryId
+                    : Guid.Empty;
+
+            var legacyClaim = user?.FindFirst("tenant_id")?.Value;
+            return Guid.TryParse(legacyClaim, out var legacyId)
+                ? legacyId
+                : Guid.Empty;
         }
     }
 }

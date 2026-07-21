@@ -16,6 +16,7 @@ using SpaceOS.Modules.Cutting.Analytics.Domain.Common;
 using SpaceOS.Modules.Cutting.Analytics.Domain.Interfaces;
 using SpaceOS.Modules.Cutting.Analytics.Domain.ReadModels;
 using SpaceOS.Modules.Cutting.Api.Endpoints;
+using SpaceOS.Modules.Cutting.Infrastructure.Adapters;
 using OEEHourly = SpaceOS.Modules.Cutting.Analytics.Domain.ReadModels.MachineOEEHourly;
 using SpaceOS.Modules.Cutting.Tests.Api;
 using Xunit;
@@ -28,14 +29,15 @@ namespace SpaceOS.Modules.Cutting.Tests.Analytics.Api;
 /// </summary>
 public class AnalyticsEndpointsTests
 {
-    private static readonly Guid TenantId = Guid.NewGuid();
+    private static readonly Guid TenantId = TestAuthHandler.TenantId;
 
     private static AnalyticsPagedResult<T> EmptyPage<T>()
         => new(Array.Empty<T>(), 0, 0, 10);
 
     private HttpClient CreateClient(
         Mock<IMediator>? mediatorMock = null,
-        Mock<IRebuildJobRepository>? repoMock = null)
+        Mock<IRebuildJobRepository>? repoMock = null,
+        ICuttingTenantAccessor? tenantAccessor = null)
     {
         mediatorMock ??= new Mock<IMediator>();
         repoMock ??= new Mock<IRebuildJobRepository>();
@@ -48,7 +50,13 @@ public class AnalyticsEndpointsTests
         builder.Services.AddAuthentication("Test")
             .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", _ => { });
         builder.Services.AddAuthorization(opts =>
-            opts.AddPolicy("ManufacturerOnly", p => p.RequireAuthenticatedUser()));
+            opts.AddPolicy("ManufacturerOnly", p =>
+                p.RequireClaim("tenant_type", "Manufacturer")));
+        builder.Services.AddHttpContextAccessor();
+        if (tenantAccessor is null)
+            builder.Services.AddScoped<ICuttingTenantAccessor, HttpContextCuttingTenantAccessor>();
+        else
+            builder.Services.AddSingleton(tenantAccessor);
         builder.Services.AddRouting();
 
         var app = builder.Build();
@@ -275,6 +283,61 @@ public class AnalyticsEndpointsTests
 
         var days = (captured!.To - captured.From).TotalDays;
         days.Should().BeApproximately(7, 1);
+    }
+
+    [Fact]
+    public async Task GetOEE_NoTenantQuery_UsesAuthenticatedTenant()
+    {
+        GetMachineOEEQuery? captured = null;
+        var sender = new Mock<IMediator>();
+        sender.Setup(s => s.Send(It.IsAny<GetMachineOEEQuery>(), It.IsAny<CancellationToken>()))
+              .Callback<IRequest<Result<AnalyticsPagedResult<OEEHourly>>>, CancellationToken>(
+                  (q, _) => captured = (GetMachineOEEQuery)q)
+              .ReturnsAsync(Result<AnalyticsPagedResult<OEEHourly>>.Success(EmptyPage<OEEHourly>()));
+
+        var client = CreateClient(sender);
+        var response = await client.GetAsync("/api/cutting/analytics/oee");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        captured.Should().NotBeNull();
+        captured!.TenantId.Should().Be(TenantId);
+    }
+
+    [Fact]
+    public async Task GetOEE_QueryTenantCannotOverrideAuthenticatedTenant()
+    {
+        var foreignTenantId = Guid.NewGuid();
+        GetMachineOEEQuery? captured = null;
+        var sender = new Mock<IMediator>();
+        sender.Setup(s => s.Send(It.IsAny<GetMachineOEEQuery>(), It.IsAny<CancellationToken>()))
+              .Callback<IRequest<Result<AnalyticsPagedResult<OEEHourly>>>, CancellationToken>(
+                  (q, _) => captured = (GetMachineOEEQuery)q)
+              .ReturnsAsync(Result<AnalyticsPagedResult<OEEHourly>>.Success(EmptyPage<OEEHourly>()));
+
+        var client = CreateClient(sender);
+        var response = await client.GetAsync(
+            $"/api/cutting/analytics/oee?tenantId={foreignTenantId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        captured.Should().NotBeNull();
+        captured!.TenantId.Should().Be(TenantId);
+        captured.TenantId.Should().NotBe(foreignTenantId);
+    }
+
+    [Fact]
+    public async Task GetOEE_AuthenticatedWithoutTenantClaim_Returns401()
+    {
+        var tenantAccessor = new Mock<ICuttingTenantAccessor>();
+        tenantAccessor.SetupGet(accessor => accessor.TenantId).Returns(Guid.Empty);
+        var sender = new Mock<IMediator>();
+
+        var client = CreateClient(sender, tenantAccessor: tenantAccessor.Object);
+        var response = await client.GetAsync("/api/cutting/analytics/oee");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        sender.Verify(
+            s => s.Send(It.IsAny<GetMachineOEEQuery>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     // ══════════════════════════════════════════════════════════════════

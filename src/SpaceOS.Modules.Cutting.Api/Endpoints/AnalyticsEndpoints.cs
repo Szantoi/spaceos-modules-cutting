@@ -6,6 +6,7 @@ using SpaceOS.Modules.Cutting.Analytics.Application.Queries;
 using SpaceOS.Modules.Cutting.Analytics.Domain.Aggregates;
 using SpaceOS.Modules.Cutting.Analytics.Domain.Interfaces;
 using SpaceOS.Modules.Cutting.Analytics.Domain.ValueObjects;
+using SpaceOS.Modules.Cutting.Infrastructure.Adapters;
 using ArdalisResultStatus = Ardalis.Result.ResultStatus;
 using HttpIResult = Microsoft.AspNetCore.Http.IResult;
 
@@ -33,11 +34,15 @@ public static class AnalyticsEndpoints
 
     private static async Task<HttpIResult> GetExecutionMetrics(
         ISender sender,
-        Guid tenantId, string? machineId,
+        ICuttingTenantAccessor tenantAccessor,
+        string? machineId,
         DateOnly? from, DateOnly? to,
         int skip = 0, int take = 100,
         CancellationToken ct = default)
     {
+        var tenantId = tenantAccessor.TenantId;
+        if (tenantId == Guid.Empty) return Results.Unauthorized();
+
         var query = new GetDailyExecutionMetricsQuery(
             tenantId, machineId,
             from ?? DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30)),
@@ -49,11 +54,15 @@ public static class AnalyticsEndpoints
 
     private static async Task<HttpIResult> GetMaterialUsage(
         ISender sender,
-        Guid tenantId, string? materialCode,
+        ICuttingTenantAccessor tenantAccessor,
+        string? materialCode,
         DateOnly? from, DateOnly? to,
         int skip = 0, int take = 100,
         CancellationToken ct = default)
     {
+        var tenantId = tenantAccessor.TenantId;
+        if (tenantId == Guid.Empty) return Results.Unauthorized();
+
         var query = new GetMaterialUsageQuery(
             tenantId, materialCode,
             from ?? DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30)),
@@ -65,11 +74,15 @@ public static class AnalyticsEndpoints
 
     private static async Task<HttpIResult> GetOEE(
         ISender sender,
-        Guid tenantId, string? machineId,
+        ICuttingTenantAccessor tenantAccessor,
+        string? machineId,
         DateTime? from, DateTime? to,
         int skip = 0, int take = 100,
         CancellationToken ct = default)
     {
+        var tenantId = tenantAccessor.TenantId;
+        if (tenantId == Guid.Empty) return Results.Unauthorized();
+
         var query = new GetMachineOEEQuery(
             tenantId, machineId,
             from ?? DateTime.UtcNow.AddDays(-7),
@@ -81,11 +94,14 @@ public static class AnalyticsEndpoints
 
     private static async Task<HttpIResult> GetOperatorMetrics(
         ISender sender,
-        Guid tenantId,
+        ICuttingTenantAccessor tenantAccessor,
         DateOnly? from, DateOnly? to,
         int skip = 0, int take = 100,
         CancellationToken ct = default)
     {
+        var tenantId = tenantAccessor.TenantId;
+        if (tenantId == Guid.Empty) return Results.Unauthorized();
+
         var query = new GetOperatorMetricsQuery(
             tenantId,
             from ?? DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30)),
@@ -97,9 +113,13 @@ public static class AnalyticsEndpoints
 
     private static async Task<HttpIResult> GetRebuildStatus(
         ISender sender,
-        Guid tenantId, Guid jobId,
+        ICuttingTenantAccessor tenantAccessor,
+        Guid jobId,
         CancellationToken ct = default)
     {
+        var tenantId = tenantAccessor.TenantId;
+        if (tenantId == Guid.Empty) return Results.Unauthorized();
+
         var query = new GetRebuildJobStatusQuery(tenantId, jobId);
         var result = await sender.Send(query, ct).ConfigureAwait(false);
         if (!result.IsSuccess)
@@ -111,9 +131,12 @@ public static class AnalyticsEndpoints
 
     private static async Task<HttpIResult> TriggerRebuild(
         IRebuildJobRepository repo,
-        Guid tenantId,
+        ICuttingTenantAccessor tenantAccessor,
         CancellationToken ct = default)
     {
+        var tenantId = tenantAccessor.TenantId;
+        if (tenantId == Guid.Empty) return Results.Unauthorized();
+
         // SEC-07: allow at most one active rebuild job per tenant.
         var active = await repo.GetActiveForTenantAsync(tenantId, ct).ConfigureAwait(false);
         if (active is not null)
@@ -128,15 +151,18 @@ public static class AnalyticsEndpoints
         await repo.SaveChangesAsync(ct).ConfigureAwait(false);
 
         return Results.Accepted(
-            $"/api/cutting/analytics/rebuild-status?tenantId={tenantId}&jobId={job.Id}",
+            $"/api/cutting/analytics/rebuild-status?jobId={job.Id}",
             new { jobId = job.Id });
     }
 
     private static async Task<HttpIResult> GetDashboardSummary(
         ISender sender,
-        Guid tenantId,
+        ICuttingTenantAccessor tenantAccessor,
         CancellationToken ct = default)
     {
+        var tenantId = tenantAccessor.TenantId;
+        if (tenantId == Guid.Empty) return Results.Unauthorized();
+
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var monthAgo = today.AddDays(-30);
 

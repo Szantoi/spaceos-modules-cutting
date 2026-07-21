@@ -54,7 +54,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization(opts =>
-    opts.AddPolicy("ManufacturerOnly", p => p.RequireAuthenticatedUser()));
+    opts.AddPolicy("ManufacturerOnly", p =>
+        p.RequireClaim("tenant_type", "Manufacturer")));
 
 // Phase 5: Rate limiting for public endpoints (MSG-BACKEND-079)
 builder.Services.AddRateLimiter(options =>
