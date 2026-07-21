@@ -59,11 +59,11 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
         _client.DefaultRequestHeaders.Add("X-Tenant-Id", tenantId.ToString());
 
         // Act
-        var response = await _client.PostAsJsonAsync("/public/cutting/quote-request", request).ConfigureAwait(false);
+        var response = await _client.PostAsJsonAsync("/public/cutting/quote-request", request);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var result = await response.Content.ReadFromJsonAsync<QuoteRequestResponseDto>().ConfigureAwait(false);
+        var result = await response.Content.ReadFromJsonAsync<QuoteRequestResponseDto>();
         Assert.NotNull(result);
         Assert.NotEmpty(result.QuoteId);
         Assert.NotEmpty(result.TrackingToken);
@@ -101,7 +101,7 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
         _client.DefaultRequestHeaders.Add("X-Tenant-Id", tenantId.ToString());
 
         // Act
-        var response = await _client.PostAsJsonAsync("/public/cutting/quote-request", request).ConfigureAwait(false);
+        var response = await _client.PostAsJsonAsync("/public/cutting/quote-request", request);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -111,14 +111,14 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
     public async Task TrackQuote_ValidToken_ReturnsQuoteDetails()
     {
         // Arrange
-        var (tenantId, trackingToken) = await CreateTestQuoteAsync().ConfigureAwait(false);
+        var (tenantId, trackingToken) = await CreateTestQuoteAsync();
 
         // Act
-        var response = await _client.GetAsync($"/public/cutting/quotes/track/{trackingToken}").ConfigureAwait(false);
+        var response = await _client.GetAsync($"/public/cutting/quotes/track/{trackingToken}");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var result = await response.Content.ReadFromJsonAsync<QuoteTrackingDto>().ConfigureAwait(false);
+        var result = await response.Content.ReadFromJsonAsync<QuoteTrackingDto>();
         Assert.NotNull(result);
         Assert.NotEmpty(result.QuoteNumber);
         Assert.Equal("PendingReview", result.Status);
@@ -131,7 +131,7 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
         var invalidToken = "invalidtoken";
 
         // Act
-        var response = await _client.GetAsync($"/public/cutting/quotes/track/{invalidToken}").ConfigureAwait(false);
+        var response = await _client.GetAsync($"/public/cutting/quotes/track/{invalidToken}");
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -141,14 +141,14 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
     public async Task AcceptQuote_ValidToken_Returns200()
     {
         // Arrange
-        var (tenantId, trackingToken) = await CreateAndApproveTestQuoteAsync().ConfigureAwait(false);
+        var (tenantId, trackingToken) = await CreateAndApproveTestQuoteAsync();
 
         // Act
-        var response = await _client.PostAsync($"/public/cutting/quotes/track/{trackingToken}/accept", null).ConfigureAwait(false);
+        var response = await _client.PostAsync($"/public/cutting/quotes/track/{trackingToken}/accept", null);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var result = await response.Content.ReadFromJsonAsync<dynamic>().ConfigureAwait(false);
+        var result = await response.Content.ReadFromJsonAsync<dynamic>();
         Assert.NotNull(result);
     }
 
@@ -156,11 +156,11 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
     public async Task AcceptQuote_AlreadyAccepted_Returns400()
     {
         // Arrange
-        var (tenantId, trackingToken) = await CreateAndApproveTestQuoteAsync().ConfigureAwait(false);
-        await _client.PostAsync($"/public/cutting/quotes/track/{trackingToken}/accept", null).ConfigureAwait(false);
+        var (tenantId, trackingToken) = await CreateAndApproveTestQuoteAsync();
+        await _client.PostAsync($"/public/cutting/quotes/track/{trackingToken}/accept", null);
 
         // Act (second accept)
-        var response = await _client.PostAsync($"/public/cutting/quotes/track/{trackingToken}/accept", null).ConfigureAwait(false);
+        var response = await _client.PostAsync($"/public/cutting/quotes/track/{trackingToken}/accept", null);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -176,16 +176,16 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
         // Arrange
         var tenantId = Guid.NewGuid();
         var userId = Guid.NewGuid();
-        await CreateTestQuoteForTenantAsync(tenantId).ConfigureAwait(false);
+        await CreateTestQuoteForTenantAsync(tenantId);
 
         var authenticatedClient = CreateAuthenticatedClient(tenantId, userId);
 
         // Act
-        var response = await authenticatedClient.GetAsync("/api/cutting/quotes").ConfigureAwait(false);
+        var response = await authenticatedClient.GetAsync("/api/cutting/quotes");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var result = await response.Content.ReadFromJsonAsync<List<QuoteRequestListItemDto>>().ConfigureAwait(false);
+        var result = await response.Content.ReadFromJsonAsync<List<QuoteRequestListItemDto>>();
         Assert.NotNull(result);
         Assert.NotEmpty(result);
     }
@@ -194,9 +194,22 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
     public async Task GetQuoteRequests_Unauthenticated_Returns401()
     {
         // Act
-        var response = await _client.GetAsync("/api/cutting/quotes").ConfigureAwait(false);
+        var response = await _client.GetAsync("/api/cutting/quotes");
 
         // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetQuoteRequests_MalformedCanonicalTenantClaim_DoesNotUseLegacyFallback()
+    {
+        var client = CreateAuthenticatedClient(Guid.NewGuid(), Guid.NewGuid());
+        client.DefaultRequestHeaders.Remove("X-Test-Tid");
+        client.DefaultRequestHeaders.Add("X-Test-Tid", "not-a-guid");
+        client.DefaultRequestHeaders.Add("X-Test-Legacy-Tenant-Id", Guid.NewGuid().ToString());
+
+        var response = await client.GetAsync("/api/cutting/quotes");
+
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
@@ -204,46 +217,72 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
     public async Task ApproveQuote_ValidQuote_UpdatesStatus()
     {
         // Arrange
-        var (tenantId, quoteId) = await CreateTestQuoteForApprovalAsync().ConfigureAwait(false);
+        var (tenantId, quoteId) = await CreateTestQuoteForApprovalAsync();
         var userId = Guid.NewGuid();
         var authenticatedClient = CreateAuthenticatedClient(tenantId, userId);
 
         var approveRequest = new
         {
             QuotedPriceAmount = 45000m,
-            QuotedPriceCurrency = "HUF"
+            QuotedPriceCurrency = "HUF",
+            CustomerEmail = "customer@example.com"
         };
 
         // Act
-        var response = await authenticatedClient.PutAsJsonAsync($"/api/cutting/quotes/{quoteId}/approve", approveRequest).ConfigureAwait(false);
+        var response = await authenticatedClient.PutAsJsonAsync($"/api/cutting/quotes/{quoteId}/approve", approveRequest);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         // Verify status changed
-        var quote = await GetQuoteByIdAsync(quoteId).ConfigureAwait(false);
+        var quote = await GetQuoteByIdAsync(quoteId);
         Assert.Equal(QuoteStatus.Quoted, quote.Status);
+    }
+
+    [Fact]
+    public async Task ApproveQuote_DifferentTenant_Returns404AndDoesNotChangeStatus()
+    {
+        var (ownerTenantId, quoteId) = await CreateTestQuoteForApprovalAsync();
+        var otherTenantClient = CreateAuthenticatedClient(Guid.NewGuid(), Guid.NewGuid());
+        var approveRequest = new
+        {
+            QuotedPriceAmount = 45000m,
+            QuotedPriceCurrency = "HUF",
+            CustomerEmail = "customer@example.com"
+        };
+
+        var response = await otherTenantClient.PutAsJsonAsync(
+            $"/api/cutting/quotes/{quoteId}/approve",
+            approveRequest);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var quote = await GetQuoteByIdAsync(quoteId);
+        Assert.Equal(ownerTenantId, quote.TenantId);
+        Assert.Equal(QuoteStatus.PendingReview, quote.Status);
     }
 
     [Fact]
     public async Task ApproveQuote_AlreadyApproved_Returns400()
     {
         // Arrange
-        var (tenantId, quoteId) = await CreateTestQuoteForApprovalAsync().ConfigureAwait(false);
+        var (tenantId, quoteId) = await CreateTestQuoteForApprovalAsync();
         var userId = Guid.NewGuid();
         var authenticatedClient = CreateAuthenticatedClient(tenantId, userId);
 
         var approveRequest = new
         {
             QuotedPriceAmount = 45000m,
-            QuotedPriceCurrency = "HUF"
+            QuotedPriceCurrency = "HUF",
+            CustomerEmail = "customer@example.com"
         };
 
         // First approval
-        await authenticatedClient.PutAsJsonAsync($"/api/cutting/quotes/{quoteId}/approve", approveRequest).ConfigureAwait(false);
+        var firstResponse = await authenticatedClient
+            .PutAsJsonAsync($"/api/cutting/quotes/{quoteId}/approve", approveRequest);
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
 
         // Act (second approval)
-        var response = await authenticatedClient.PutAsJsonAsync($"/api/cutting/quotes/{quoteId}/approve", approveRequest).ConfigureAwait(false);
+        var response = await authenticatedClient.PutAsJsonAsync($"/api/cutting/quotes/{quoteId}/approve", approveRequest);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -253,24 +292,46 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
     public async Task RejectQuote_ValidQuote_UpdatesStatus()
     {
         // Arrange
-        var (tenantId, quoteId) = await CreateTestQuoteForApprovalAsync().ConfigureAwait(false);
+        var (tenantId, quoteId) = await CreateTestQuoteForApprovalAsync();
         var userId = Guid.NewGuid();
         var authenticatedClient = CreateAuthenticatedClient(tenantId, userId);
 
         var rejectRequest = new
         {
-            Reason = "Insufficient capacity"
+            Reason = "Insufficient capacity",
+            CustomerEmail = "customer@example.com"
         };
 
         // Act
-        var response = await authenticatedClient.PutAsJsonAsync($"/api/cutting/quotes/{quoteId}/reject", rejectRequest).ConfigureAwait(false);
+        var response = await authenticatedClient.PutAsJsonAsync($"/api/cutting/quotes/{quoteId}/reject", rejectRequest);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         // Verify status changed
-        var quote = await GetQuoteByIdAsync(quoteId).ConfigureAwait(false);
+        var quote = await GetQuoteByIdAsync(quoteId);
         Assert.Equal(QuoteStatus.Rejected, quote.Status);
+    }
+
+    [Fact]
+    public async Task RejectQuote_DifferentTenant_Returns404AndDoesNotChangeStatus()
+    {
+        var (ownerTenantId, quoteId) = await CreateTestQuoteForApprovalAsync();
+        var otherTenantClient = CreateAuthenticatedClient(Guid.NewGuid(), Guid.NewGuid());
+        var rejectRequest = new
+        {
+            Reason = "Insufficient capacity",
+            CustomerEmail = "customer@example.com"
+        };
+
+        var response = await otherTenantClient.PutAsJsonAsync(
+            $"/api/cutting/quotes/{quoteId}/reject",
+            rejectRequest);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var quote = await GetQuoteByIdAsync(quoteId);
+        Assert.Equal(ownerTenantId, quote.TenantId);
+        Assert.Equal(QuoteStatus.PendingReview, quote.Status);
     }
 
     [Fact]
@@ -284,11 +345,12 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
 
         var rejectRequest = new
         {
-            Reason = "Test reason"
+            Reason = "Test reason",
+            CustomerEmail = "customer@example.com"
         };
 
         // Act
-        var response = await authenticatedClient.PutAsJsonAsync($"/api/cutting/quotes/{invalidQuoteId}/reject", rejectRequest).ConfigureAwait(false);
+        var response = await authenticatedClient.PutAsJsonAsync($"/api/cutting/quotes/{invalidQuoteId}/reject", rejectRequest);
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -318,24 +380,23 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
             new DeliveryDetails("Test Address", DateTime.UtcNow.AddDays(7)));
 
         dbContext.QuoteRequests.Add(quote);
-        await dbContext.SaveChangesAsync().ConfigureAwait(false);
+        await dbContext.SaveChangesAsync();
 
         return (tenantId, trackingToken);
     }
 
     private async Task<(Guid TenantId, string TrackingToken)> CreateAndApproveTestQuoteAsync()
     {
-        var (tenantId, trackingToken) = await CreateTestQuoteAsync().ConfigureAwait(false);
+        var (tenantId, trackingToken) = await CreateTestQuoteAsync();
 
         using var scope = _factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<CuttingDbContext>();
 
         var quote = await dbContext.QuoteRequests
-            .FirstOrDefaultAsync(q => q.TrackingToken == trackingToken)
-            .ConfigureAwait(false);
+            .FirstOrDefaultAsync(q => q.TrackingToken == trackingToken);
 
         quote!.ApproveAndQuote(new Money(45000m, "HUF"), Guid.NewGuid());
-        await dbContext.SaveChangesAsync().ConfigureAwait(false);
+        await dbContext.SaveChangesAsync();
 
         return (tenantId, trackingToken);
     }
@@ -359,7 +420,7 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
             new DeliveryDetails("Test Address", null));
 
         dbContext.QuoteRequests.Add(quote);
-        await dbContext.SaveChangesAsync().ConfigureAwait(false);
+        await dbContext.SaveChangesAsync();
 
         return quote.Id;
     }
@@ -367,7 +428,7 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
     private async Task<(Guid TenantId, Guid QuoteId)> CreateTestQuoteForApprovalAsync()
     {
         var tenantId = Guid.NewGuid();
-        var quoteId = await CreateTestQuoteForTenantAsync(tenantId).ConfigureAwait(false);
+        var quoteId = await CreateTestQuoteForTenantAsync(tenantId);
         return (tenantId, quoteId);
     }
 
@@ -375,14 +436,14 @@ public sealed class QuoteRequestEndpointTests : IClassFixture<CuttingWebApplicat
     {
         using var scope = _factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<CuttingDbContext>();
-        return (await dbContext.QuoteRequests.FindAsync(quoteId).ConfigureAwait(false))!;
+        return (await dbContext.QuoteRequests.FindAsync(quoteId))!;
     }
 
     private HttpClient CreateAuthenticatedClient(Guid tenantId, Guid userId)
     {
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("Authorization", $"Bearer fake-token-{userId}");
-        // Note: In real tests, use TestAuthHandler to inject claims
+        client.DefaultRequestHeaders.Add("X-Test-Tid", tenantId.ToString());
         return client;
     }
 

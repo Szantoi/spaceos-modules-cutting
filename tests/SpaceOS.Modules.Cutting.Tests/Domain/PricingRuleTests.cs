@@ -1,3 +1,4 @@
+using System.Globalization;
 using SpaceOS.Modules.Cutting.Domain.Aggregates;
 using SpaceOS.Modules.Cutting.Domain.ValueObjects;
 using Xunit;
@@ -261,6 +262,33 @@ public class PricingRuleTests
         Assert.Contains("10% discount", result.Breakdown);
         Assert.Contains("×0.90", result.Breakdown);
         Assert.Contains("15% surcharge", result.Breakdown);
+    }
+
+    [Fact]
+    public void CalculatePrice_HungarianCulture_UsesInvariantBreakdown()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("hu-HU");
+            var materialId = Guid.NewGuid();
+            var pricingRule = PricingRule.Create(Guid.NewGuid(), "Wood Panels", 100.50m);
+            pricingRule.AddQuantityBreakpoint(1, 101, 10m);
+            pricingRule.AddLeadTimeAdjustment(7, 0.8m);
+            pricingRule.AddMaterialSurcharge(materialId, 12m);
+            pricingRule.Activate();
+
+            var result = pricingRule.CalculatePrice(5, 7, materialId);
+
+            Assert.Contains("Base: 100.50 HUF", result.Breakdown);
+            Assert.Contains("×0.90", result.Breakdown);
+            Assert.Contains("×0.80", result.Breakdown);
+            Assert.Contains("×1.12 (12% surcharge)", result.Breakdown);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 
     [Theory]

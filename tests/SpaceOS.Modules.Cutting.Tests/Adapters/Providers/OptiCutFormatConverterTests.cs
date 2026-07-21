@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using FluentAssertions;
 using SpaceOS.Modules.Cutting.Contracts.Dtos;
@@ -78,6 +79,28 @@ public class OptiCutFormatConverterTests
         payload.Metadata["sheetId"].Should().Be(sheet.Id.ToString());
     }
 
+    [Fact]
+    public void ToVendorInput_HungarianCulture_UsesInvariantDecimalAttributes()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("hu-HU");
+            var sheet = MakeSheet(MakeLine("Door", 600.5m, 400.25m));
+
+            var payload = _sut.ToVendorInput(sheet);
+
+            var xml = Encoding.UTF8.GetString(payload.Content);
+            xml.Should().Contain("Width=\"600.5\"")
+                .And.Contain("Height=\"400.25\"");
+            xml.Should().NotContain("600,5").And.NotContain("400,25");
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
+    }
+
     // ── ParseVendorOutput ────────────────────────────────────────────────────
 
     [Fact]
@@ -101,6 +124,37 @@ public class OptiCutFormatConverterTests
         result.Value.Placements.Should().HaveCount(2);
         result.Value.Placements[0].PartName.Should().Be("Door-A");
         result.Value.Placements[1].IsRotated.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ParseVendorOutput_HungarianCulture_ParsesInvariantDecimals()
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("hu-HU");
+            var sheetId = Guid.NewGuid();
+            var xml = """
+                <Result WastePercentage="8.5" PanelsRequired="1">
+                    <Placement Name="Door-A" X="10.25" Y="20.5" Width="600.5" Height="400.25" Rotated="false"/>
+                </Result>
+                """;
+            var payload = new AdapterPayload(
+                "application/xml",
+                Encoding.UTF8.GetBytes(xml),
+                new Dictionary<string, string>());
+
+            var result = _sut.ParseVendorOutput(payload, sheetId);
+
+            result.IsSuccess.Should().BeTrue();
+            result.Value.WastePercentage.Should().Be(8.5m);
+            result.Value.Placements[0].X.Should().Be(10.25m);
+            result.Value.Placements[0].Width.Should().Be(600.5m);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 
     [Fact]

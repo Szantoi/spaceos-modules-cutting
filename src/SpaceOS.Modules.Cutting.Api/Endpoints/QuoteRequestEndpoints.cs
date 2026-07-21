@@ -30,7 +30,8 @@ public static class QuoteRequestEndpoints
             .RequireRateLimiting("PublicCuttingLimiter");  // Phase 5: 50 req/hour per IP
 
         // Legacy public endpoints (unauthenticated)
-        var publicGroup = app.MapGroup("/public/cutting");
+        var publicGroup = app.MapGroup("/public/cutting")
+            .RequireRateLimiting("PublicCuttingLimiter");
 
         publicGroup.MapPost("/quote-request", CreateQuoteRequest)
             .AllowAnonymous();
@@ -177,7 +178,7 @@ public static class QuoteRequestEndpoints
         {
             return Results.NotFound(new { Error = ex.Message });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Log exception (ILogger should be injected)
             return Results.Problem(detail: "An error occurred processing your request.", statusCode: 500);
@@ -256,11 +257,13 @@ public static class QuoteRequestEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
+        var tenantId = GetTenantId(httpContext);
         var userId = GetUserId(httpContext);
-        if (userId == Guid.Empty) return Results.Unauthorized();
+        if (tenantId == Guid.Empty || userId == Guid.Empty) return Results.Unauthorized();
 
         var command = new ApproveQuoteCommand
         {
+            TenantId = tenantId,
             QuoteId = quoteId,
             QuotedPriceAmount = request.QuotedPriceAmount,
             QuotedPriceCurrency = request.QuotedPriceCurrency,
@@ -270,7 +273,11 @@ public static class QuoteRequestEndpoints
         var result = await mediator.Send(command, ct).ConfigureAwait(false);
 
         if (!result.IsSuccess)
-            return Results.BadRequest(new { Errors = result.Errors });
+        {
+            return result.Status == Ardalis.Result.ResultStatus.NotFound
+                ? Results.NotFound(new { Errors = result.Errors })
+                : Results.BadRequest(new { Errors = result.Errors });
+        }
 
         // Q3 Track A: Send email notification to customer
         // TODO: Get customer email and tracking URL from quote aggregate
@@ -302,11 +309,13 @@ public static class QuoteRequestEndpoints
         HttpContext httpContext,
         CancellationToken ct)
     {
+        var tenantId = GetTenantId(httpContext);
         var userId = GetUserId(httpContext);
-        if (userId == Guid.Empty) return Results.Unauthorized();
+        if (tenantId == Guid.Empty || userId == Guid.Empty) return Results.Unauthorized();
 
         var command = new RejectQuoteCommand
         {
+            TenantId = tenantId,
             QuoteId = quoteId,
             Reason = request.Reason,
             UserId = userId
@@ -315,7 +324,11 @@ public static class QuoteRequestEndpoints
         var result = await mediator.Send(command, ct).ConfigureAwait(false);
 
         if (!result.IsSuccess)
-            return Results.BadRequest(new { Errors = result.Errors });
+        {
+            return result.Status == Ardalis.Result.ResultStatus.NotFound
+                ? Results.NotFound(new { Errors = result.Errors })
+                : Results.BadRequest(new { Errors = result.Errors });
+        }
 
         // Q3 Track A: Send email notification to customer
         // TODO: Get customer email from quote aggregate
@@ -333,8 +346,18 @@ public static class QuoteRequestEndpoints
     // Helper methods
     private static Guid GetTenantId(HttpContext httpContext)
     {
-        var claim = httpContext.User.FindFirst("tenant_id");
-        return claim != null && Guid.TryParse(claim.Value, out var id) ? id : Guid.Empty;
+        var canonicalClaim = httpContext.User.FindFirst("tid");
+        if (canonicalClaim is not null)
+        {
+            return Guid.TryParse(canonicalClaim.Value, out var canonicalTenantId)
+                ? canonicalTenantId
+                : Guid.Empty;
+        }
+
+        var legacyClaim = httpContext.User.FindFirst("tenant_id");
+        return legacyClaim is not null && Guid.TryParse(legacyClaim.Value, out var legacyTenantId)
+            ? legacyTenantId
+            : Guid.Empty;
     }
 
     private static Guid GetUserId(HttpContext httpContext)
@@ -343,20 +366,6 @@ public static class QuoteRequestEndpoints
         return claim != null && Guid.TryParse(claim.Value, out var id) ? id : Guid.Empty;
     }
 
-    private static Guid GetTenantIdFromContext(HttpContext httpContext)
-    {
-        // For public endpoints, tenant might come from subdomain, header, or query param
-        // Example: header "X-Tenant-Id" or subdomain parsing
-        if (httpContext.Request.Headers.TryGetValue("X-Tenant-Id", out var tenantHeader)
-            && Guid.TryParse(tenantHeader.FirstOrDefault(), out var tenantId))
-        {
-            return tenantId;
-        }
-
-        // TODO: Implement subdomain-based tenant resolution
-        // For now, return a default tenant for testing
-        return Guid.Empty;
-    }
 }
 
 // Request DTOs

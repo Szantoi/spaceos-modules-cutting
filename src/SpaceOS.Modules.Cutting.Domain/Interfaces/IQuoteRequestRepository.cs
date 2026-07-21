@@ -14,9 +14,9 @@ public interface IQuoteRequestRepository
     Task AddAsync(CuttingQuoteRequest quoteRequest, CancellationToken ct);
 
     /// <summary>
-    /// Gets a quote request by ID.
+    /// Gets a quote request by tenant and ID.
     /// </summary>
-    Task<CuttingQuoteRequest?> GetByIdAsync(Guid id, CancellationToken ct);
+    Task<CuttingQuoteRequest?> GetByIdAsync(Guid tenantId, Guid id, CancellationToken ct);
 
     /// <summary>
     /// Gets a quote request by tracking token.

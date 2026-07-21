@@ -1,7 +1,6 @@
-using System.IO;
+using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using MailKit.Net.Smtp;
 using MimeKit;
 using SpaceOS.Modules.Cutting.Application.Services;
 
@@ -12,27 +11,40 @@ namespace SpaceOS.Modules.Cutting.Infrastructure.Services;
 /// </summary>
 public class EmailService : IEmailService
 {
-    private readonly IConfiguration _config;
+    private static readonly EmailAddressAttribute EmailAddressValidator = new();
+
     private readonly ILogger<EmailService> _logger;
-    private readonly string _smtpHost;
-    private readonly int _smtpPort;
-    private readonly string _smtpUsername;
-    private readonly string _smtpPassword;
+    private readonly ISmtpMessageSender _smtpMessageSender;
     private readonly string _fromEmail;
     private readonly string _fromName;
 
     public EmailService(IConfiguration config, ILogger<EmailService> logger)
+        : this(config, logger, smtpMessageSender: null)
     {
-        _config = config;
+    }
+
+    internal EmailService(
+        IConfiguration config,
+        ILogger<EmailService> logger,
+        ISmtpMessageSender? smtpMessageSender)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(logger);
+
         _logger = logger;
 
         // Read SMTP configuration from appsettings.json
-        _smtpHost = _config["Email:SmtpHost"] ?? "smtp-relay.brevo.com";
-        _smtpPort = int.Parse(_config["Email:SmtpPort"] ?? "587");
-        _smtpUsername = _config["Email:SmtpUsername"] ?? throw new InvalidOperationException("Email:SmtpUsername not configured");
-        _smtpPassword = _config["Email:SmtpPassword"] ?? throw new InvalidOperationException("Email:SmtpPassword not configured");
-        _fromEmail = _config["Email:FromEmail"] ?? "no-reply@joinerytech.hu";
-        _fromName = _config["Email:FromName"] ?? "SpaceOS Portal";
+        var smtpHost = config["Email:SmtpHost"] ?? "smtp-relay.brevo.com";
+        var smtpPort = int.Parse(config["Email:SmtpPort"] ?? "587");
+        var smtpUsername = config["Email:SmtpUsername"]
+            ?? throw new InvalidOperationException("Email:SmtpUsername not configured");
+        var smtpPassword = config["Email:SmtpPassword"]
+            ?? throw new InvalidOperationException("Email:SmtpPassword not configured");
+
+        _fromEmail = config["Email:FromEmail"] ?? "no-reply@joinerytech.hu";
+        _fromName = config["Email:FromName"] ?? "SpaceOS Portal";
+        _smtpMessageSender = smtpMessageSender
+            ?? new MailKitSmtpMessageSender(smtpHost, smtpPort, smtpUsername, smtpPassword);
     }
 
     /// <inheritdoc/>
@@ -125,17 +137,25 @@ public class EmailService : IEmailService
     {
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(_fromName, _fromEmail));
-        message.To.Add(MailboxAddress.Parse(to));
+        message.To.Add(ParseRecipient(to));
         message.Subject = subject;
 
         var bodyBuilder = new BodyBuilder { HtmlBody = htmlBody };
         message.Body = bodyBuilder.ToMessageBody();
 
-        using var client = new SmtpClient();
-        await client.ConnectAsync(_smtpHost, _smtpPort, MailKit.Security.SecureSocketOptions.StartTls, ct).ConfigureAwait(false);
-        await client.AuthenticateAsync(_smtpUsername, _smtpPassword, ct).ConfigureAwait(false);
-        await client.SendAsync(message, ct).ConfigureAwait(false);
-        await client.DisconnectAsync(true, ct).ConfigureAwait(false);
+        await _smtpMessageSender.SendAsync(message, ct).ConfigureAwait(false);
+    }
+
+    private static MailboxAddress ParseRecipient(string address)
+    {
+        if (string.IsNullOrWhiteSpace(address) ||
+            !EmailAddressValidator.IsValid(address) ||
+            !MailboxAddress.TryParse(address, out var mailboxAddress))
+        {
+            throw new FormatException("Recipient must be a valid internet email address.");
+        }
+
+        return mailboxAddress;
     }
 
     private string RenderCustomerConfirmationTemplate(string quoteNumber, string trackingToken, string trackingUrl)

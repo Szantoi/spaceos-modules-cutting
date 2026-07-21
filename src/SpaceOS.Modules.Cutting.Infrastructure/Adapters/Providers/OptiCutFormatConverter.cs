@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security;
 using System.Text;
 using System.Xml;
@@ -40,8 +41,11 @@ internal sealed class OptiCutFormatConverter : IAdapterFormatConverter
         foreach (var line in sheet.Lines)
         {
             var escapedName = SecurityElement.Escape(line.Name) ?? string.Empty;
+            var width = line.RawWidth.ToString(CultureInfo.InvariantCulture);
+            var height = line.RawHeight.ToString(CultureInfo.InvariantCulture);
+            var quantity = line.Quantity.ToString(CultureInfo.InvariantCulture);
             sb.AppendLine(
-                $"    <Part Name=\"{escapedName}\" Width=\"{line.RawWidth}\" Height=\"{line.RawHeight}\" Quantity=\"{line.Quantity}\"/>");
+                $"    <Part Name=\"{escapedName}\" Width=\"{width}\" Height=\"{height}\" Quantity=\"{quantity}\"/>");
         }
 
         sb.AppendLine("  </Parts>");
@@ -72,18 +76,24 @@ internal sealed class OptiCutFormatConverter : IAdapterFormatConverter
                 .Descendants("Placement")
                 .Select(p => new PanelPlacementDto(
                     p.Attribute("Name")?.Value ?? string.Empty,
-                    decimal.TryParse(p.Attribute("X")?.Value, out var x) ? x : 0m,
-                    decimal.TryParse(p.Attribute("Y")?.Value, out var y) ? y : 0m,
-                    decimal.TryParse(p.Attribute("Width")?.Value, out var w) ? w : 0m,
-                    decimal.TryParse(p.Attribute("Height")?.Value, out var h) ? h : 0m,
+                    ParseInvariantDecimal(p.Attribute("X")?.Value),
+                    ParseInvariantDecimal(p.Attribute("Y")?.Value),
+                    ParseInvariantDecimal(p.Attribute("Width")?.Value),
+                    ParseInvariantDecimal(p.Attribute("Height")?.Value),
                     string.Equals(p.Attribute("Rotated")?.Value, "true", StringComparison.OrdinalIgnoreCase)))
                 .ToList();
 
             var wasteAttr = root.Attribute("WastePercentage")?.Value;
-            var waste = decimal.TryParse(wasteAttr, out var w2) ? w2 : 0m;
+            var waste = ParseInvariantDecimal(wasteAttr);
 
             var panelsAttr = root.Attribute("PanelsRequired")?.Value;
-            var panels = int.TryParse(panelsAttr, out var p2) ? p2 : 0;
+            var panels = int.TryParse(
+                panelsAttr,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var parsedPanels)
+                ? parsedPanels
+                : 0;
 
             return Result<PanelAssignmentDto>.Success(
                 new PanelAssignmentDto(sheetId, placements, waste, panels));
@@ -93,6 +103,15 @@ internal sealed class OptiCutFormatConverter : IAdapterFormatConverter
             return Result<PanelAssignmentDto>.Error($"XML parse failed: {ex.Message}");
         }
     }
+
+    private static decimal ParseInvariantDecimal(string? value)
+        => decimal.TryParse(
+            value,
+            NumberStyles.Float,
+            CultureInfo.InvariantCulture,
+            out var parsed)
+            ? parsed
+            : 0m;
 
     // IAdapterFormatConverter untyped bridge — not used by OptiCutAdapter directly
     AdapterPayload IAdapterFormatConverter.ToVendorInput(object request)

@@ -8,6 +8,7 @@ namespace SpaceOS.Modules.Cutting.Application.Commands.ApproveQuote;
 /// </summary>
 public sealed record ApproveQuoteCommand : IRequest<Result>
 {
+    public required Guid TenantId { get; init; }
     public required Guid QuoteId { get; init; }
     public required decimal QuotedPriceAmount { get; init; }
     public required string QuotedPriceCurrency { get; init; }

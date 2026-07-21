@@ -8,6 +8,7 @@ namespace SpaceOS.Modules.Cutting.Application.Commands.RejectQuote;
 /// </summary>
 public sealed record RejectQuoteCommand : IRequest<Result>
 {
+    public required Guid TenantId { get; init; }
     public required Guid QuoteId { get; init; }
     public required string Reason { get; init; }
     public required Guid UserId { get; init; }

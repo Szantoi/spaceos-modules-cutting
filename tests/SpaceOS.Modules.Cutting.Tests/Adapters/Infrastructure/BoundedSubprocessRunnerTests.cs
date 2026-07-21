@@ -11,12 +11,9 @@ public class BoundedSubprocessRunnerTests
     [Fact]
     public async Task RunAsync_EchoCommand_CapturesStdout()
     {
-        var req = new BoundedSubprocessRequest(
-            Executable: "/bin/echo",
-            Arguments: new[] { "hello world" },
-            Timeout: TimeSpan.FromSeconds(5),
-            MaxMemoryMb: 64,
-            WorkingDirectory: "/tmp");
+        var req = CreateShellRequest(
+            windowsCommand: "echo hello world",
+            unixCommand: "printf 'hello world\\n'");
 
         var result = await _runner.RunAsync(req, CancellationToken.None);
 
@@ -28,12 +25,9 @@ public class BoundedSubprocessRunnerTests
     [Fact]
     public async Task RunAsync_NonZeroExitCode_CapturedCorrectly()
     {
-        var req = new BoundedSubprocessRequest(
-            Executable: "/bin/bash",
-            Arguments: new[] { "-c", "exit 42" },
-            Timeout: TimeSpan.FromSeconds(5),
-            MaxMemoryMb: 64,
-            WorkingDirectory: "/tmp");
+        var req = CreateShellRequest(
+            windowsCommand: "exit /b 42",
+            unixCommand: "exit 42");
 
         var result = await _runner.RunAsync(req, CancellationToken.None);
 
@@ -44,12 +38,9 @@ public class BoundedSubprocessRunnerTests
     [Fact]
     public async Task RunAsync_StderrCaptured()
     {
-        var req = new BoundedSubprocessRequest(
-            Executable: "/bin/bash",
-            Arguments: new[] { "-c", "echo err >&2" },
-            Timeout: TimeSpan.FromSeconds(5),
-            MaxMemoryMb: 64,
-            WorkingDirectory: "/tmp");
+        var req = CreateShellRequest(
+            windowsCommand: "echo err 1>&2",
+            unixCommand: "printf 'err\\n' >&2");
 
         var result = await _runner.RunAsync(req, CancellationToken.None);
 
@@ -59,12 +50,10 @@ public class BoundedSubprocessRunnerTests
     [Fact]
     public async Task RunAsync_Timeout_SetsTimedOut()
     {
-        var req = new BoundedSubprocessRequest(
-            Executable: "/bin/sleep",
-            Arguments: new[] { "60" },
-            Timeout: TimeSpan.FromMilliseconds(100),
-            MaxMemoryMb: 64,
-            WorkingDirectory: "/tmp");
+        var req = CreateShellRequest(
+            windowsCommand: "ping 127.0.0.1 -n 60 >NUL",
+            unixCommand: "sleep 60",
+            timeout: TimeSpan.FromMilliseconds(100));
 
         var result = await _runner.RunAsync(req, CancellationToken.None);
 
@@ -75,12 +64,9 @@ public class BoundedSubprocessRunnerTests
     [Fact]
     public async Task RunAsync_DurationIsRecorded()
     {
-        var req = new BoundedSubprocessRequest(
-            Executable: "/bin/echo",
-            Arguments: new[] { "ok" },
-            Timeout: TimeSpan.FromSeconds(5),
-            MaxMemoryMb: 64,
-            WorkingDirectory: "/tmp");
+        var req = CreateShellRequest(
+            windowsCommand: "echo ok",
+            unixCommand: "printf 'ok\\n'");
 
         var result = await _runner.RunAsync(req, CancellationToken.None);
 
@@ -88,23 +74,55 @@ public class BoundedSubprocessRunnerTests
     }
 
     [Fact]
-    public void RunAsync_EmptyExecutable_ThrowsArgumentException()
+    public async Task RunAsync_EmptyExecutable_ThrowsArgumentException()
     {
         var req = new BoundedSubprocessRequest(
             Executable: "",
             Arguments: Array.Empty<string>(),
             Timeout: TimeSpan.FromSeconds(5),
             MaxMemoryMb: 64,
-            WorkingDirectory: "/tmp");
+            WorkingDirectory: Path.GetTempPath());
 
-        var act = async () => await _runner.RunAsync(req, CancellationToken.None);
-        act.Should().ThrowAsync<ArgumentException>();
+        var act = () => _runner.RunAsync(req, CancellationToken.None);
+        await act.Should().ThrowAsync<ArgumentException>();
     }
 
     [Fact]
-    public void RunAsync_NullRequest_ThrowsArgumentNullException()
+    public async Task RunAsync_NullRequest_ThrowsArgumentNullException()
     {
-        var act = async () => await _runner.RunAsync(null!, CancellationToken.None);
-        act.Should().ThrowAsync<ArgumentNullException>();
+        var act = () => _runner.RunAsync(null!, CancellationToken.None);
+        await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    private static BoundedSubprocessRequest CreateShellRequest(
+        string windowsCommand,
+        string unixCommand,
+        TimeSpan? timeout = null)
+    {
+        string executable;
+        IReadOnlyList<string> arguments;
+
+        if (OperatingSystem.IsWindows())
+        {
+            executable = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe";
+            arguments = new[] { "/d", "/c", windowsCommand };
+        }
+        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            executable = "/bin/sh";
+            arguments = new[] { "-c", unixCommand };
+        }
+        else
+        {
+            throw new PlatformNotSupportedException(
+                "The subprocess test fixture supports Windows, Linux, and macOS.");
+        }
+
+        return new BoundedSubprocessRequest(
+            Executable: executable,
+            Arguments: arguments,
+            Timeout: timeout ?? TimeSpan.FromSeconds(5),
+            MaxMemoryMb: 64,
+            WorkingDirectory: Path.GetTempPath());
     }
 }

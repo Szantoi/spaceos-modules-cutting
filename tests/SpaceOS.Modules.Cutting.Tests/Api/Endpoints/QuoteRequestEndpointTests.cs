@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Moq;
 using SpaceOS.Modules.Cutting.Application.DTOs.QuoteRequest;
 using SpaceOS.Modules.Cutting.Application.Services;
+using SpaceOS.Modules.Cutting.Domain.Enums;
 using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
 using Xunit;
 
@@ -58,7 +59,7 @@ public class QuoteRequestEndpointTests : IClassFixture<WebApplicationFactory<Pro
     }
 
     [Fact]
-    public async Task CreateQuoteRequest_ValidRequest_Returns201Created()
+    public async Task CreateQuoteRequest_ValidRequest_Returns200WithTrackingData()
     {
         // Arrange
         var client = _factory.CreateClient();
@@ -73,11 +74,11 @@ public class QuoteRequestEndpointTests : IClassFixture<WebApplicationFactory<Pro
             {
                 new QuoteLineItemDto
                 {
-                    MaterialType = "MDF",
+                    MaterialType = nameof(MaterialType.MDF_18MM),
                     WidthMm = 1000,
                     HeightMm = 2000,
                     Quantity = 5,
-                    EdgingType = "PVC"
+                    EdgingType = nameof(EdgingType.ABS_2MM_WHITE)
                 }
             }
         };
@@ -88,10 +89,11 @@ public class QuoteRequestEndpointTests : IClassFixture<WebApplicationFactory<Pro
         var response = await client.PostAsJsonAsync("/public/cutting/quote-request", request);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK); // Note: Implementation returns OK, not Created
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("QuoteNumber");
-        content.Should().Contain("TrackingToken");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var content = await response.Content.ReadFromJsonAsync<QuoteRequestResponseDto>();
+        content.Should().NotBeNull();
+        content!.QuoteNumber.Should().NotBeNullOrWhiteSpace();
+        content.TrackingToken.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
@@ -109,7 +111,7 @@ public class QuoteRequestEndpointTests : IClassFixture<WebApplicationFactory<Pro
             {
                 new QuoteLineItemDto
                 {
-                    MaterialType = "MDF",
+                    MaterialType = nameof(MaterialType.MDF_18MM),
                     WidthMm = 1000,
                     HeightMm = 2000,
                     Quantity = 1,
@@ -151,7 +153,7 @@ public class QuoteRequestEndpointTests : IClassFixture<WebApplicationFactory<Pro
             {
                 new QuoteLineItemDto
                 {
-                    MaterialType = "MDF",
+                    MaterialType = nameof(MaterialType.MDF_18MM),
                     WidthMm = 1000,
                     HeightMm = 2000,
                     Quantity = 1,
@@ -184,7 +186,7 @@ public class QuoteRequestEndpointTests : IClassFixture<WebApplicationFactory<Pro
             {
                 new QuoteLineItemDto
                 {
-                    MaterialType = "MDF",
+                    MaterialType = nameof(MaterialType.MDF_18MM),
                     WidthMm = 1000,
                     HeightMm = 2000,
                     Quantity = 1,

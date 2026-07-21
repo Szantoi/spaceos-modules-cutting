@@ -26,10 +26,13 @@ public sealed class QuoteRequestRepository : IQuoteRequestRepository
     }
 
     /// <inheritdoc />
-    public async Task<CuttingQuoteRequest?> GetByIdAsync(Guid id, CancellationToken ct)
+    public async Task<CuttingQuoteRequest?> GetByIdAsync(
+        Guid tenantId,
+        Guid id,
+        CancellationToken ct)
     {
         return await _db.QuoteRequests
-            .FirstOrDefaultAsync(q => q.Id == id, ct)
+            .FirstOrDefaultAsync(q => q.TenantId == tenantId && q.Id == id, ct)
             .ConfigureAwait(false);
     }
 

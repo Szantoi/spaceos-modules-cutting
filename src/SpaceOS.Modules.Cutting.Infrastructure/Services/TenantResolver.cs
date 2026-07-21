@@ -38,7 +38,7 @@ public class TenantResolver : ITenantResolver
         var tenantId = await db.Database
             .SqlQueryRaw<Guid>(
                 """
-                SELECT "Id"
+                SELECT "Id" AS "Value"
                 FROM "Tenants"
                 WHERE "Subdomain" = {0}
                 LIMIT 1

@@ -22,7 +22,9 @@ public sealed class RejectQuoteCommandHandler : IRequestHandler<RejectQuoteComma
 
     public async Task<Result> Handle(RejectQuoteCommand request, CancellationToken ct)
     {
-        var quote = await _repository.GetByIdAsync(request.QuoteId, ct).ConfigureAwait(false);
+        var quote = await _repository
+            .GetByIdAsync(request.TenantId, request.QuoteId, ct)
+            .ConfigureAwait(false);
         if (quote == null)
         {
             return Result.NotFound($"Quote request {request.QuoteId} not found.");

@@ -8,7 +8,7 @@ namespace SpaceOS.Modules.Cutting.Tests.Fixtures;
 
 /// <summary>
 /// Test authentication handler that processes fake Bearer tokens for integration tests.
-/// Extracts tenantId and userId from the token format: "Bearer fake-token-{userId}".
+/// Extracts userId from the token and test-only tenant claims from request headers.
 /// </summary>
 internal class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
@@ -45,13 +45,20 @@ internal class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptio
             return Task.FromResult(AuthenticateResult.Fail("Invalid test token format"));
         }
 
-        // Create claims identity
-        var claims = new[]
+        // Create claims identity. The API is responsible for validating claim values.
+        var claims = new List<Claim>
         {
+            new Claim("sub", userId.ToString()),
             new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
             new Claim(ClaimTypes.Name, $"TestUser-{userId}"),
             new Claim(ClaimTypes.Role, "Admin")
         };
+
+        if (Request.Headers.TryGetValue("X-Test-Tid", out var canonicalTenantClaim))
+            claims.Add(new Claim("tid", canonicalTenantClaim.ToString()));
+
+        if (Request.Headers.TryGetValue("X-Test-Legacy-Tenant-Id", out var legacyTenantClaim))
+            claims.Add(new Claim("tenant_id", legacyTenantClaim.ToString()));
 
         var identity = new ClaimsIdentity(claims, AuthenticationScheme);
         var principal = new ClaimsPrincipal(identity);

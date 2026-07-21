@@ -1,5 +1,4 @@
 using FluentAssertions;
-using MailKit.Net.Smtp;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MimeKit;
@@ -17,12 +16,14 @@ public class EmailServiceTests
 {
     private readonly Mock<IConfiguration> _configMock;
     private readonly Mock<ILogger<EmailService>> _loggerMock;
+    private readonly RecordingSmtpMessageSender _smtpMessageSender;
     private readonly Dictionary<string, string?> _configValues;
 
     public EmailServiceTests()
     {
         _configMock = new Mock<IConfiguration>();
         _loggerMock = new Mock<ILogger<EmailService>>();
+        _smtpMessageSender = new RecordingSmtpMessageSender();
 
         _configValues = new Dictionary<string, string?>
         {
@@ -43,17 +44,10 @@ public class EmailServiceTests
     public async Task SendQuoteRequestNotification_ValidInput_SendsTwoEmails()
     {
         // Arrange
-        var service = new EmailService(_configMock.Object, _loggerMock.Object);
+        var service = CreateService();
 
-        // Note: This test verifies the method doesn't throw exceptions
-        // In production, we would mock SmtpClient, but MailKit's SmtpClient is sealed
-        // and requires custom wrapper for testing. For now, we verify method signature
-        // and error handling in separate tests.
-
-        // Act & Assert
-        // We expect the method to attempt sending emails
-        // If SMTP is not available, it will throw, which is expected behavior
-        var act = async () => await service.SendQuoteRequestNotification(
+        // Act
+        await service.SendQuoteRequestNotification(
             customerEmail: "customer@example.com",
             adminEmail: "admin@example.com",
             quoteNumber: "Q-2024-001",
@@ -61,18 +55,26 @@ public class EmailServiceTests
             trackingUrl: "https://portal.example.com/track/abc123",
             ct: CancellationToken.None);
 
-        // Since we can't mock sealed SmtpClient, we verify it throws connection error
-        await act.Should().ThrowAsync<Exception>();
+        // Assert
+        _smtpMessageSender.SentMessages.Should().HaveCount(2);
+        _smtpMessageSender.SentMessages[0].To.Mailboxes.Should()
+            .ContainSingle(mailbox => mailbox.Address == "customer@example.com");
+        _smtpMessageSender.SentMessages[0].Subject.Should()
+            .Be("Quote Request #Q-2024-001 Received");
+        _smtpMessageSender.SentMessages[1].To.Mailboxes.Should()
+            .ContainSingle(mailbox => mailbox.Address == "admin@example.com");
+        _smtpMessageSender.SentMessages[1].Subject.Should()
+            .Be("New Quote Request #Q-2024-001");
     }
 
     [Fact]
     public async Task SendQuoteApprovedNotification_ValidInput_SendsOneEmail()
     {
         // Arrange
-        var service = new EmailService(_configMock.Object, _loggerMock.Object);
+        var service = CreateService();
 
-        // Act & Assert
-        var act = async () => await service.SendQuoteApprovedNotification(
+        // Act
+        await service.SendQuoteApprovedNotification(
             customerEmail: "customer@example.com",
             quoteNumber: "Q-2024-001",
             price: 150000m,
@@ -80,23 +82,33 @@ public class EmailServiceTests
             acceptUrl: "https://portal.example.com/accept/abc123",
             ct: CancellationToken.None);
 
-        await act.Should().ThrowAsync<Exception>();
+        // Assert
+        _smtpMessageSender.SentMessages.Should().ContainSingle();
+        _smtpMessageSender.SentMessages[0].To.Mailboxes.Should()
+            .ContainSingle(mailbox => mailbox.Address == "customer@example.com");
+        _smtpMessageSender.SentMessages[0].Subject.Should()
+            .Be("Quote #Q-2024-001 Approved");
     }
 
     [Fact]
     public async Task SendQuoteRejectedNotification_ValidInput_SendsOneEmail()
     {
         // Arrange
-        var service = new EmailService(_configMock.Object, _loggerMock.Object);
+        var service = CreateService();
 
-        // Act & Assert
-        var act = async () => await service.SendQuoteRejectedNotification(
+        // Act
+        await service.SendQuoteRejectedNotification(
             customerEmail: "customer@example.com",
             quoteNumber: "Q-2024-001",
             reason: "Materials not available",
             ct: CancellationToken.None);
 
-        await act.Should().ThrowAsync<Exception>();
+        // Assert
+        _smtpMessageSender.SentMessages.Should().ContainSingle();
+        _smtpMessageSender.SentMessages[0].To.Mailboxes.Should()
+            .ContainSingle(mailbox => mailbox.Address == "customer@example.com");
+        _smtpMessageSender.SentMessages[0].Subject.Should()
+            .Be("Quote #Q-2024-001 Update");
     }
 
     [Fact]
@@ -157,26 +169,22 @@ public class EmailServiceTests
     public async Task SendQuoteRequestNotification_SmtpConnectionError_LogsErrorAndThrows()
     {
         // Arrange
-        var service = new EmailService(_configMock.Object, _loggerMock.Object);
+        var expectedException = new InvalidOperationException("SMTP unavailable");
+        _smtpMessageSender.ExceptionToThrow = expectedException;
+        var service = CreateService();
 
-        // Act
-        try
-        {
-            await service.SendQuoteRequestNotification(
+        // Act & Assert
+        var act = () => service.SendQuoteRequestNotification(
                 customerEmail: "customer@example.com",
                 adminEmail: "admin@example.com",
                 quoteNumber: "Q-2024-001",
                 trackingToken: "abc123",
                 trackingUrl: "https://portal.example.com/track/abc123",
                 ct: CancellationToken.None);
-        }
-        catch (Exception)
-        {
-            // Expected exception
-        }
 
-        // Assert
-        // Verify that error was logged
+        var assertion = await act.Should().ThrowAsync<InvalidOperationException>();
+        assertion.Which.Should().BeSameAs(expectedException);
+
         _loggerMock.Verify(
             x => x.Log(
                 LogLevel.Error,
@@ -195,7 +203,7 @@ public class EmailServiceTests
     public async Task SendQuoteRequestNotification_InvalidEmailAddress_ThrowsFormatException(string invalidEmail)
     {
         // Arrange
-        var service = new EmailService(_configMock.Object, _loggerMock.Object);
+        var service = CreateService();
 
         // Act & Assert
         var act = async () => await service.SendQuoteRequestNotification(
@@ -206,7 +214,25 @@ public class EmailServiceTests
             trackingUrl: "https://portal.example.com/track/abc123",
             ct: CancellationToken.None);
 
-        // MimeKit's MailboxAddress.Parse throws FormatException for invalid emails
         await act.Should().ThrowAsync<FormatException>();
+        _smtpMessageSender.SentMessages.Should().BeEmpty();
+    }
+
+    private EmailService CreateService() =>
+        new(_configMock.Object, _loggerMock.Object, _smtpMessageSender);
+
+    private sealed class RecordingSmtpMessageSender : ISmtpMessageSender
+    {
+        public List<MimeMessage> SentMessages { get; } = new();
+        public Exception? ExceptionToThrow { get; set; }
+
+        public Task SendAsync(MimeMessage message, CancellationToken ct)
+        {
+            if (ExceptionToThrow is not null)
+                return Task.FromException(ExceptionToThrow);
+
+            SentMessages.Add(message);
+            return Task.CompletedTask;
+        }
     }
 }

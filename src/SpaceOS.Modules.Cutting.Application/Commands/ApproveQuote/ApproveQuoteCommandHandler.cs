@@ -23,7 +23,9 @@ public sealed class ApproveQuoteCommandHandler : IRequestHandler<ApproveQuoteCom
 
     public async Task<Result> Handle(ApproveQuoteCommand request, CancellationToken ct)
     {
-        var quote = await _repository.GetByIdAsync(request.QuoteId, ct).ConfigureAwait(false);
+        var quote = await _repository
+            .GetByIdAsync(request.TenantId, request.QuoteId, ct)
+            .ConfigureAwait(false);
         if (quote == null)
         {
             return Result.NotFound($"Quote request {request.QuoteId} not found.");

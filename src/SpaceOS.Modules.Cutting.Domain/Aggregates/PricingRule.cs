@@ -210,7 +210,10 @@ public class PricingRule
 
         // Base price
         decimal price = BasePricePerUnit;
-        var breakdown = new List<string> { $"Base: {BasePricePerUnit:F2} HUF" };
+        var breakdown = new List<string>
+        {
+            FormattableString.Invariant($"Base: {BasePricePerUnit:F2} HUF")
+        };
 
         // Apply quantity breakpoint discount
         var breakpoint = _quantityBreakpoints
@@ -220,7 +223,8 @@ public class PricingRule
         {
             decimal discountFactor = 1 - (breakpoint.DiscountPercent / 100m);
             price *= discountFactor;
-            breakdown.Add($"Qty Breakpoint ({breakpoint.MinQuantity}-{breakpoint.MaxQuantity}): ×{discountFactor:F2} ({breakpoint.DiscountPercent}% discount)");
+            breakdown.Add(FormattableString.Invariant(
+                $"Qty Breakpoint ({breakpoint.MinQuantity}-{breakpoint.MaxQuantity}): ×{discountFactor:F2} ({breakpoint.DiscountPercent}% discount)"));
         }
         else
         {
@@ -236,7 +240,8 @@ public class PricingRule
         if (leadTimeAdj != null)
         {
             price *= leadTimeAdj.AdjustmentFactor;
-            breakdown.Add($"LeadTime Adj ({leadTimeAdj.LeadDays}+ days): ×{leadTimeAdj.AdjustmentFactor:F2}");
+            breakdown.Add(FormattableString.Invariant(
+                $"LeadTime Adj ({leadTimeAdj.LeadDays}+ days): ×{leadTimeAdj.AdjustmentFactor:F2}"));
         }
         else
         {
@@ -251,7 +256,8 @@ public class PricingRule
             {
                 decimal surchargeFactor = 1 + (surcharge.SurchargePercent / 100m);
                 price *= surchargeFactor;
-                breakdown.Add($"Material Surcharge: ×{surchargeFactor:F2} ({surcharge.SurchargePercent}% surcharge)");
+                breakdown.Add(FormattableString.Invariant(
+                    $"Material Surcharge: ×{surchargeFactor:F2} ({surcharge.SurchargePercent}% surcharge)"));
             }
             else
             {
