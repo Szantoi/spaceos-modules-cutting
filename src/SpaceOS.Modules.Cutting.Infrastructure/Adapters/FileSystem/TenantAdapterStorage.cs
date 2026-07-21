@@ -10,7 +10,10 @@ namespace SpaceOS.Modules.Cutting.Infrastructure.Adapters.FileSystem;
 internal sealed class TenantAdapterStorage : ITenantAdapterStorage
 {
     private static readonly Regex CorrelationIdPattern =
-        new(@"^[A-Za-z0-9\-]{1,100}$", RegexOptions.Compiled);
+        new(@"^[A-Za-z0-9\-]{1,100}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private static readonly Regex AdapterNamePattern =
+        new(@"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly string BaseRoot =
         Path.Combine(Path.DirectorySeparatorChar.ToString(), "var", "lib", "spaceos-cutting", "adapters");
@@ -42,8 +45,15 @@ internal sealed class TenantAdapterStorage : ITenantAdapterStorage
         return await File.ReadAllBytesAsync(completePath, ct).ConfigureAwait(false);
     }
 
-    public string GetTenantRoot(Guid tenantId, string adapterName) =>
-        Path.Combine(BaseRoot, tenantId.ToString("N"), adapterName);
+    public string GetTenantRoot(Guid tenantId, string adapterName)
+    {
+        ValidateAdapterName(adapterName);
+
+        var tenantBase = Path.GetFullPath(Path.Combine(BaseRoot, tenantId.ToString("N")));
+        var adapterRoot = Path.GetFullPath(Path.Combine(tenantBase, adapterName));
+        EnsurePathIsBelowRoot(adapterRoot, tenantBase);
+        return adapterRoot;
+    }
 
     public string GetOutboxPath(Guid tenantId, string adapterName) =>
         Path.Combine(GetTenantRoot(tenantId, adapterName), "outbox");
@@ -66,15 +76,38 @@ internal sealed class TenantAdapterStorage : ITenantAdapterStorage
                 nameof(correlationId));
     }
 
+    private static void ValidateAdapterName(string adapterName)
+    {
+        if (string.IsNullOrWhiteSpace(adapterName) || !AdapterNamePattern.IsMatch(adapterName))
+        {
+            throw new ArgumentException(
+                "AdapterName must be 1-64 ASCII letters, digits, underscores, or hyphens and start with a letter or digit.",
+                nameof(adapterName));
+        }
+    }
+
     private static string BuildSafePath(string directory, string fileName)
     {
         var fullPath = Path.GetFullPath(Path.Combine(directory, fileName));
         var rootFull = Path.GetFullPath(directory);
 
-        if (!fullPath.StartsWith(rootFull, StringComparison.Ordinal))
-            throw new InvalidOperationException($"Path traversal detected: '{fullPath}' is outside '{rootFull}'.");
+        EnsurePathIsBelowRoot(fullPath, rootFull);
 
         return fullPath;
+    }
+
+    private static void EnsurePathIsBelowRoot(string path, string root)
+    {
+        var normalizedRoot = Path.GetFullPath(root)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        var normalizedPath = Path.GetFullPath(path);
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        if (!normalizedPath.StartsWith(normalizedRoot, comparison))
+            throw new InvalidOperationException($"Path traversal detected: '{normalizedPath}' is outside '{root}'.");
     }
 
     private static void RejectSymlink(string path)

@@ -75,6 +75,36 @@ public class TenantAdapterStorageTests
         root.Should().Contain(AdapterName);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData(".")]
+    [InlineData("..")]
+    [InlineData("../other-tenant")]
+    [InlineData("..\\other-tenant")]
+    [InlineData("opticut/../../other-tenant")]
+    [InlineData("opticut adapter")]
+    [InlineData("-opticut")]
+    public void GetTenantRoot_InvalidAdapterName_ThrowsArgumentException(string adapterName)
+    {
+        var act = () => _storage.GetTenantRoot(TenantId, adapterName);
+
+        act.Should().Throw<ArgumentException>()
+            .WithParameterName("adapterName");
+    }
+
+    [Theory]
+    [InlineData("opticut")]
+    [InlineData("cutrite-cli")]
+    [InlineData("adapter_1")]
+    public void GetTenantRoot_ValidAdapterName_RemainsUnderTenantRoot(string adapterName)
+    {
+        var root = _storage.GetTenantRoot(TenantId, adapterName);
+        var tenantSegment = Path.DirectorySeparatorChar + TenantId.ToString("N") + Path.DirectorySeparatorChar;
+
+        root.Should().Contain(tenantSegment);
+        root.Should().EndWith(adapterName);
+    }
+
     [Fact]
     public void GetOutboxPath_IsUnderTenantRoot()
     {

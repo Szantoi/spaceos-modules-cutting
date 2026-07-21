@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using SpaceOS.Modules.Cutting.Api.Endpoints;
@@ -18,6 +19,7 @@ namespace SpaceOS.Modules.Cutting.Tests.Api;
 public class InternalEndpointsTests : IDisposable
 {
     private static readonly Guid AllowedTenant = new("aaaaaaaa-0000-0000-0000-000000000001");
+    private const string InternalSecret = "cutting-test-internal-secret-not-production";
 
     private readonly HttpClient _client;
     private readonly Mock<ICuttingRepository> _repoMock = new();
@@ -29,6 +31,10 @@ public class InternalEndpointsTests : IDisposable
 
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["SpaceOS:InternalSecret"] = InternalSecret
+        });
         builder.Services.AddSingleton(_repoMock.Object);
         builder.Services.AddSingleton(new Mock<IMediator>().Object);
         builder.Services.AddDbContext<CuttingDbContext>(opts =>
@@ -75,6 +81,18 @@ public class InternalEndpointsTests : IDisposable
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
+    [Fact]
+    public async Task Delete_LegacyBooleanHeader_Returns403()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Delete,
+            $"/internal/cutting-sheets/by-tenant/{AllowedTenant}?confirm=true");
+        request.Headers.Add("X-SpaceOS-Internal", "true");
+
+        var response = await _client.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
     // ── Confirm param check ───────────────────────────────────────────────────
 
     [Fact]
@@ -82,7 +100,7 @@ public class InternalEndpointsTests : IDisposable
     {
         var request = new HttpRequestMessage(HttpMethod.Delete,
             $"/internal/cutting-sheets/by-tenant/{AllowedTenant}");
-        request.Headers.Add("X-SpaceOS-Internal", "true");
+        request.Headers.Add("X-SpaceOS-Internal", InternalSecret);
 
         var response = await _client.SendAsync(request);
 
@@ -96,7 +114,7 @@ public class InternalEndpointsTests : IDisposable
     {
         var request = new HttpRequestMessage(HttpMethod.Delete,
             "/internal/cutting-sheets/by-tenant/not-a-guid?confirm=true");
-        request.Headers.Add("X-SpaceOS-Internal", "true");
+        request.Headers.Add("X-SpaceOS-Internal", InternalSecret);
 
         var response = await _client.SendAsync(request);
 
@@ -111,7 +129,7 @@ public class InternalEndpointsTests : IDisposable
         var unknownTenant = Guid.NewGuid();
         var request = new HttpRequestMessage(HttpMethod.Delete,
             $"/internal/cutting-sheets/by-tenant/{unknownTenant}?confirm=true");
-        request.Headers.Add("X-SpaceOS-Internal", "true");
+        request.Headers.Add("X-SpaceOS-Internal", InternalSecret);
 
         var response = await _client.SendAsync(request);
 
@@ -132,6 +150,23 @@ public class InternalEndpointsTests : IDisposable
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
+    [Fact]
+    public async Task IngestOrder_ExactSecret_ReachesRequestValidation()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/internal/ingest-order")
+        {
+            Content = new StringContent(
+                """{"orderId":"00000000-0000-0000-0000-000000000001","tenantId":"00000000-0000-0000-0000-000000000002","items":[]}""",
+                System.Text.Encoding.UTF8,
+                "application/json")
+        };
+        request.Headers.Add("X-SpaceOS-Internal", InternalSecret);
+
+        var response = await _client.SendAsync(request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     // ── Success ───────────────────────────────────────────────────────────────
 
     [Fact]
@@ -143,7 +178,7 @@ public class InternalEndpointsTests : IDisposable
 
         var request = new HttpRequestMessage(HttpMethod.Delete,
             $"/internal/cutting-sheets/by-tenant/{AllowedTenant}?confirm=true");
-        request.Headers.Add("X-SpaceOS-Internal", "true");
+        request.Headers.Add("X-SpaceOS-Internal", InternalSecret);
 
         var response = await _client.SendAsync(request);
 

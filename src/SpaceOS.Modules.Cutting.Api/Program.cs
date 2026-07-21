@@ -30,8 +30,10 @@ var jwtAuthority = builder.Configuration["Jwt:Authority"]
 var jwtAudience = builder.Configuration["Jwt:Audience"]
     ?? Environment.GetEnvironmentVariable("JWT_AUDIENCE")
     ?? "kernel-api";
+var isProductionLike = builder.Environment.IsProduction()
+    || builder.Environment.IsEnvironment("Staging");
 
-if (builder.Environment.IsProduction())
+if (isProductionLike)
     ArgumentNullException.ThrowIfNullOrEmpty(jwtAuthority,
         "Jwt:Authority / JWT_AUTHORITY must be configured");
 
@@ -57,16 +59,28 @@ builder.Services.AddAuthorization(opts =>
     opts.AddPolicy("ManufacturerOnly", p =>
         p.RequireClaim("tenant_type", "Manufacturer")));
 
+var publicPermitLimit = builder.Configuration.GetValue<int?>(
+    "RateLimiting:PublicCutting:PermitLimit") ?? 50;
+var publicWindowMinutes = builder.Configuration.GetValue<int?>(
+    "RateLimiting:PublicCutting:WindowMinutes") ?? 60;
+
+if (publicPermitLimit <= 0 || publicWindowMinutes <= 0)
+    throw new InvalidOperationException(
+        "Public Cutting rate-limit values must be positive integers.");
+
 // Phase 5: Rate limiting for public endpoints (MSG-BACKEND-079)
 builder.Services.AddRateLimiter(options =>
 {
-    options.AddFixedWindowLimiter("PublicCuttingLimiter", limiterOptions =>
-    {
-        limiterOptions.PermitLimit = 50;
-        limiterOptions.Window = TimeSpan.FromHours(1);
-        limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        limiterOptions.QueueLimit = 2;
-    });
+    options.AddPolicy("PublicCuttingLimiter", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = publicPermitLimit,
+                Window = TimeSpan.FromMinutes(publicWindowMinutes),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 2
+            }));
 
     options.OnRejected = async (context, cancellationToken) =>
     {
@@ -102,8 +116,13 @@ builder.Services.AddCors(options =>
     });
 });
 
-var connectionString = builder.Configuration.GetConnectionString("Cutting")
-    ?? "Host=localhost;Database=spaceos;Username=spaceos_app;Password=changeme";
+var connectionString = builder.Configuration.GetConnectionString("Cutting");
+if (isProductionLike)
+    ArgumentException.ThrowIfNullOrWhiteSpace(
+        connectionString,
+        "ConnectionStrings:Cutting must be configured outside development");
+
+connectionString ??= "Host=localhost;Database=spaceos;Username=spaceos_app;Password=changeme";
 
 builder.Services.AddCuttingInfrastructure(connectionString, builder.Configuration);
 builder.Services.AddCuttingExecutionInfrastructure();

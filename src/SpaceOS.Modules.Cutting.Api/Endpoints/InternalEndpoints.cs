@@ -3,17 +3,22 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SpaceOS.Modules.Cutting.Application.Commands.IngestOrder;
 using SpaceOS.Modules.Cutting.Domain.Enums;
 using SpaceOS.Modules.Cutting.Domain.Interfaces;
 using SpaceOS.Modules.Cutting.Infrastructure.Persistence;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace SpaceOS.Modules.Cutting.Api.Endpoints;
 
 public static class InternalEndpoints
 {
     private const string InternalHeader = "X-SpaceOS-Internal";
+    private const string InternalSecretConfigKey = "SpaceOS:InternalSecret";
+    private const string InternalSecretEnvKey = "SPACEOS_INTERNAL_SECRET";
     private const string AllowlistEnvKey = "TEST_TENANT_ALLOWLIST";
 
     public static IEndpointRouteBuilder MapInternalEndpoints(this IEndpointRouteBuilder app)
@@ -31,15 +36,15 @@ public static class InternalEndpoints
         string tenantId,
         string? confirm,
         HttpRequest request,
+        IConfiguration configuration,
         ICuttingRepository repo,
         CuttingDbContext dbContext,
         ILogger<Program> logger,
         CancellationToken ct)
     {
-        // 1. X-SpaceOS-Internal header required
-        if (!request.Headers.TryGetValue(InternalHeader, out var headerVal) ||
-            headerVal != "true")
-            return Results.StatusCode(403);
+        var authenticationFailure = AuthenticateInternalRequest(request, configuration);
+        if (authenticationFailure is not null)
+            return authenticationFailure;
 
         // 2. ?confirm=true required
         if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
@@ -96,13 +101,13 @@ public static class InternalEndpoints
     private static async Task<IResult> IngestOrder(
         IngestOrderDto dto,
         HttpRequest request,
+        IConfiguration configuration,
         IMediator mediator,
         CancellationToken ct)
     {
-        // X-SpaceOS-Internal header required
-        if (!request.Headers.TryGetValue(InternalHeader, out var headerVal) ||
-            headerVal != "true")
-            return Results.StatusCode(403);
+        var authenticationFailure = AuthenticateInternalRequest(request, configuration);
+        if (authenticationFailure is not null)
+            return authenticationFailure;
 
         if (dto.Items is null || dto.Items.Count == 0)
             return Results.BadRequest(new { error = "Items list must not be empty." });
@@ -127,6 +132,32 @@ public static class InternalEndpoints
         }
 
         return Results.Ok(new { orderId = dto.OrderId, jobsCreated = result.Value });
+    }
+
+    private static IResult? AuthenticateInternalRequest(
+        HttpRequest request,
+        IConfiguration configuration)
+    {
+        var expectedSecret = configuration[InternalSecretConfigKey]
+            ?? Environment.GetEnvironmentVariable(InternalSecretEnvKey);
+
+        // Fail closed when service-to-service authentication has not been configured.
+        if (string.IsNullOrWhiteSpace(expectedSecret))
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+        if (!request.Headers.TryGetValue(InternalHeader, out var headerValues)
+            || headerValues.Count != 1)
+        {
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        var providedSecret = headerValues[0] ?? string.Empty;
+        var expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(expectedSecret));
+        var providedHash = SHA256.HashData(Encoding.UTF8.GetBytes(providedSecret));
+
+        return CryptographicOperations.FixedTimeEquals(providedHash, expectedHash)
+            ? null
+            : Results.StatusCode(StatusCodes.Status403Forbidden);
     }
 }
 
